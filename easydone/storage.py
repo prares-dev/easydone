@@ -1,0 +1,21 @@
+import json
+
+class JSONHandler():
+    def __init__(self, json_file: str = "tasks.json"):
+        self.json_file = json_file
+    
+    def load(self) -> dict[str, dict]:
+        """ Loads content from a json file. If doesn't exist it creates it. """
+        try:
+            with open(self.json_file, 'r') as file:
+                tasks = json.load(file)
+                return tasks
+        except FileNotFoundError:
+            print(f'{self.json_file} doesn\'t exists in the current directory.')
+            print("Starting with empty task list...")
+            return {}
+    
+    def save(self, tasks: dict[str, dict]):
+        """ Saves a tasks dictionary to the registered json_file. """
+        with open(self.json_file, 'w') as file:
+            json.dump(tasks, file, indent=4)
