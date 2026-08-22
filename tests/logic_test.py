@@ -15,13 +15,9 @@ Keeping setup in fixtures makes each test focus on the command behavior it is
 checking.
 """
 
-import sys
 import pytest
 
-# The application modules live one directory above this test package.
-sys.path.append("../easydone")
-
-from cli import CLIApp  # type: ignore
+from easydone.cli import CLIApp
 
 # ===========
 # FIXTURES

@@ -1,9 +1,6 @@
 import json
-import sys
 
-sys.path.append("../easydone")
-
-from storage import JSONHandler #type: ignore
+from easydone.storage import JSONHandler
 
 def test_load_returns_existing_tasks(tmp_path):
     json_file = tmp_path / "tasks.json"

@@ -1,5 +1,5 @@
 import argparse
-import logic
+from .logic import TasksManager
 
 SUPPORTED_STATUS = ["not-done", "done", "in-progress"]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
@@ -9,7 +9,7 @@ class CLIApp():
     
     def __init__(self, tasks_from_file: dict[str, dict]) -> None:
         """Initialize the CLIApp attributes"""
-        self.tasks_manager = logic.TasksManager(tasks_from_file)
+        self.tasks_manager = TasksManager(tasks_from_file)
         self.build_parser()
     
     def build_parser(self) -> None:
@@ -144,8 +144,10 @@ class CLIApp():
         
         self.list_task_parser.set_defaults(func=self.tasks_manager.list)
 
-
     def start_parsing(self) -> None:
         """ Parses the arguments passed. """
-        args = self.main_parser.parse_args()
-        args.func(args)
+        try:
+            args = self.main_parser.parse_args()
+            args.func(args)
+        except AttributeError:
+            self.main_parser.print_help()
