@@ -28,6 +28,8 @@ class CLIApp():
         
         # 'NEW' command
         # ====================
+        
+        # Create parser for 'new' command
         self.new_task_parser = self.actions_subparser.add_parser(
             "new", 
             help="Create a new task")
@@ -37,6 +39,7 @@ class CLIApp():
             type=str, 
             help="Description of the task to be added.")
         
+        # optional flag for indicating initial status
         self.new_task_parser.add_argument(
             "-s",
             "--status", 
@@ -45,6 +48,7 @@ class CLIApp():
             choices=SUPPORTED_STATUS,
             default=SUPPORTED_STATUS[0])
         
+        # optional flag for indicating initial priority
         self.new_task_parser.add_argument(
             "-p",
             "--priority", 
@@ -53,6 +57,7 @@ class CLIApp():
             choices=SUPPORTED_PRIORITIES,
             default=SUPPORTED_PRIORITIES[0])
         
+        # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
         self.new_task_parser.set_defaults(func=self.tasks_manager.new)
         
         # 'UPDATE' command
@@ -150,4 +155,6 @@ class CLIApp():
             args = self.main_parser.parse_args()
             args.func(args)
         except AttributeError:
+            # in case user invokes the program without arguments like in:
+            # >>> easydone
             self.main_parser.print_help()
