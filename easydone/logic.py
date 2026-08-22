@@ -1,5 +1,6 @@
 from argparse import Namespace
 from random import randint
+from datetime import datetime
 
 class TasksManager():
     """ A class to manage all tasks logic. """
@@ -12,8 +13,11 @@ class TasksManager():
         self.tasks[self.task_id()] = {
             "description": args.description, 
             "status": args.status,
-            "priority": args.priority}
-    
+            "priority": args.priority,
+            "created-at": str(datetime.now()).split(" ")[0],
+            "updated-at": None
+            }
+
     def update(self, args: Namespace):
         """ Updates a task. """
         if args.id not in self.tasks:
@@ -23,6 +27,8 @@ class TasksManager():
             self.tasks[args.id]['description'] = args.description
         if hasattr(args, 'priority'):
             self.tasks[args.id]['priority'] = args.priority
+        
+        self.tasks[args.id]['updated-at'] = str(datetime.now()).split(" ")[0]
     
     def mark(self, args: Namespace):
         """Marking task as done, not done or in progress"""
@@ -58,7 +64,9 @@ class TasksManager():
             desc = self.tasks[id]['description']
             prior = self.tasks[id]['priority']
             stat = self.tasks[id]['status']
-            print(f"ID: {id} \"{desc}\" [{prior}] [{stat}]")
+            create = self.tasks[id]['created-at']
+            update = self.tasks[id]['updated-at']
+            print(f"ID: {id} \"{desc}\" [{prior}] [{stat}] [{create}], [{update}]")
         print("====================================")
     
     def task_id(self) -> str:

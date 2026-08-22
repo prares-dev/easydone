@@ -16,6 +16,7 @@ checking.
 """
 
 import pytest
+from datetime import datetime
 
 from easydone.cli import CLIApp
 from easydone.logic import TasksManager
@@ -37,16 +38,22 @@ def from_json_instance() -> CLIApp:
             "description": "read a book",
             "status": "not-done",
             "priority": "low",
+            "created-at": "2026-08-22",
+            "updated-at": None
         },
         "456": {
             "description": "write code",
             "status": "done",
             "priority": "normal",
+            "created-at": "2026-08-22",
+            "updated-at": None
         },
         "111": {
             "description": "go supermarket",
             "status": "in-progress",
             "priority": "urgent",
+            "created-at": "2026-08-22",
+            "updated-at": None
         }
     })
 
@@ -79,6 +86,8 @@ def test_adding_a_new_task(new_instance):
         "description": "read a book",
         "status": "done",
         "priority": "high",
+        "created-at": str(datetime.now()).split(" ")[0],
+        "updated-at": None
     }
 
 def test_adding_new_task_on_top_of_existent(from_json_instance):
@@ -136,6 +145,10 @@ def test_update_existing_task(from_json_instance):
     assert tasks[task_id]["description"] == "read a novel"
     assert tasks[task_id]["priority"] == "high"
     assert tasks[task_id]["status"] == "not-done"
+    
+    date = str(datetime.now()).split(" ")[0]
+    assert tasks[task_id]["created-at"] == date
+    assert tasks[task_id]["updated-at"] == date
 
 def test_mark_task_status(from_json_instance):
     """The mark command should replace an existing task's status."""
