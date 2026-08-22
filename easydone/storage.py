@@ -1,7 +1,8 @@
 import json
+from pathlib import Path
 
 class JSONHandler():
-    def __init__(self, json_file: str = "tasks.json"):
+    def __init__(self, json_file: str = "data/tasks.json"):
         self.json_file = json_file
     
     def load(self) -> dict[str, dict]:
@@ -17,5 +18,6 @@ class JSONHandler():
     
     def save(self, tasks: dict[str, dict]):
         """ Saves a tasks dictionary to the registered json_file. """
+        Path(self.json_file).parent.mkdir(parents=True, exist_ok=True)
         with open(self.json_file, 'w') as file:
             json.dump(tasks, file, indent=4)
