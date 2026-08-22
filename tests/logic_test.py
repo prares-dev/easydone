@@ -18,6 +18,7 @@ checking.
 import pytest
 
 from easydone.cli import CLIApp
+from easydone.logic import TasksManager
 
 # ===========
 # FIXTURES
@@ -100,6 +101,21 @@ def test_adding_new_task_on_top_of_existent(from_json_instance):
     assert any(task["description"] == "read another book" for task in tasks.values())
     for key in original_keys:
         assert key in tasks
+
+def test_task_id_has_ID_SIZE_digits(new_instance):
+    """Generated task IDs should always contain three digits."""
+    task_id = new_instance.tasks_manager.task_id()
+
+    assert len(task_id) == new_instance.tasks_manager.ID_SIZE
+    assert task_id.isdigit()
+
+def test_task_id_retries_when_generated_id_already_exists(monkeypatch):
+    """ID generation should retry instead of overwriting an existing task."""
+    manager = TasksManager({"123": {}})
+    generated_digits = iter([1, 2, 3, 4, 5, 6])
+    monkeypatch.setattr("easydone.logic.randint", lambda _start, _end: next(generated_digits))
+
+    assert manager.task_id() == "456"
 
 def test_update_existing_task(from_json_instance):
     """The update command should change only the requested task fields."""
