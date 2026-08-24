@@ -23,16 +23,29 @@ class TasksManager():
         if args.id not in self.tasks:
             raise KeyError("Unexistent task")
 
-        self.tasks[args.id]['description'] = args.description            
-        self.tasks[args.id]['priority'] = args.priority
-        self.tasks[args.id]['updated-at'] = str(datetime.now()).split(" ")[0]
+        task = self.tasks[args.id]
+
+        if hasattr(args, 'description') and args.description == task['description']:
+            raise ValueError("New description must be different from the current description.")
+
+        if hasattr(args, 'priority') and args.priority == task['priority']:
+            raise ValueError("New priority must be different from the current priority.")
+
+        if hasattr(args, 'description'):
+            task['description'] = args.description
+
+        if hasattr(args, 'priority'):
+            task['priority'] = args.priority
+
+        task['updated-at'] = str(datetime.now()).split(" ")[0]
     
     def mark(self, args: Namespace):
         """Marking task as done, not done or in progress"""
         if (id := args.id) not in self.tasks:
             raise KeyError("Unexistent task")
-        
+
         self.tasks[args.id]["status"] = args.new_status
+        self.tasks[args.id]["updated-at"] = str(datetime.now()).split(" ")[0]
     
     def delete(self, args: Namespace):
         """ Deletes a task. """

@@ -33,26 +33,29 @@ def new_instance() -> CLIApp:
 @pytest.fixture
 def from_json_instance() -> CLIApp:
     """Return a CLI application populated with representative task states."""
+
+    date = str(datetime.now()).split(" ")[0]
+
     return CLIApp({
         "123": {
             "description": "read a book",
             "status": "not-done",
             "priority": "low",
-            "created-at": "2026-08-22",
+            "created-at": date,
             "updated-at": None
         },
         "456": {
             "description": "write code",
             "status": "done",
             "priority": "normal",
-            "created-at": "2026-08-22",
+            "created-at": date,
             "updated-at": None
         },
         "111": {
             "description": "go supermarket",
             "status": "in-progress",
             "priority": "urgent",
-            "created-at": "2026-08-22",
+            "created-at": date,
             "updated-at": None
         }
     })
@@ -130,6 +133,7 @@ def test_update_existing_task(from_json_instance):
     """The update command should change only the requested task fields."""
     tasks = from_json_instance.tasks_manager.tasks
     task_id = "123"
+    initial_date = tasks[task_id]["created-at"]
 
     args = from_json_instance.main_parser.parse_args([
         "update",
@@ -145,10 +149,60 @@ def test_update_existing_task(from_json_instance):
     assert tasks[task_id]["description"] == "read a novel"
     assert tasks[task_id]["priority"] == "high"
     assert tasks[task_id]["status"] == "not-done"
-    
-    date = str(datetime.now()).split(" ")[0]
-    assert tasks[task_id]["created-at"] == date
-    assert tasks[task_id]["updated-at"] == date
+    assert tasks[task_id]["created-at"] == initial_date
+    assert tasks[task_id]["updated-at"] == str(datetime.now()).split(" ")[0]
+
+
+def test_update_existing_task_with_single_field(from_json_instance):
+    """A single update option should preserve the remaining task data."""
+    tasks = from_json_instance.tasks_manager.tasks
+    task_id = "123"
+    initial_date = tasks[task_id]["created-at"]
+
+    args = from_json_instance.main_parser.parse_args([
+        "update",
+        task_id,
+        "--priority",
+        "high",
+    ])
+
+    args.func(args)
+
+    assert tasks[task_id]["description"] == "read a book"
+    assert tasks[task_id]["priority"] == "high"
+    assert tasks[task_id]["status"] == "not-done"
+    assert tasks[task_id]["created-at"] == initial_date
+    assert tasks[task_id]["updated-at"] == str(datetime.now()).split(" ")[0]
+
+
+def test_update_requires_at_least_one_change(from_json_instance, monkeypatch):
+    """The update command should reject calls with no actual field changes."""
+    monkeypatch.setattr("sys.argv", ["easydone", "update", "123"])
+
+    with pytest.raises(SystemExit):
+        from_json_instance.start_parsing()
+
+
+def test_update_rejects_same_description_and_priority(from_json_instance):
+    """The update command should reject values identical to the stored task."""
+    same_description = from_json_instance.main_parser.parse_args([
+        "update",
+        "123",
+        "--description",
+        "read a book",
+    ])
+    same_priority = from_json_instance.main_parser.parse_args([
+        "update",
+        "123",
+        "--priority",
+        "low",
+    ])
+
+    with pytest.raises(ValueError, match="different"):
+        from_json_instance.tasks_manager.update(same_description)
+
+    with pytest.raises(ValueError, match="different"):
+        from_json_instance.tasks_manager.update(same_priority)
 
 def test_mark_task_status(from_json_instance):
     """The mark command should replace an existing task's status."""

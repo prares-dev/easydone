@@ -85,7 +85,7 @@ class CLIApp():
             metavar="new-priority",
             type=str, 
             help="Update priority.")
-        
+
         self.update_task_parser.set_defaults(func=self.tasks_manager.update)
         
         # 'MARK' command
@@ -153,8 +153,16 @@ class CLIApp():
         """ Parses the arguments passed. """
         try:
             args = self.main_parser.parse_args()
+
+            if getattr(args, 'func', None) == self.tasks_manager.update:
+                has_update_target = hasattr(args, 'description') or hasattr(args, 'priority')
+                if not has_update_target:
+                    self.main_parser.error("the update command requires at least one field change: --description or --priority")
+                    
             args.func(args)
         except AttributeError:
             # in case user invokes the program without arguments like in:
             # >>> easydone
             self.main_parser.print_help()
+        except ValueError as exc:
+            self.main_parser.error(str(exc))
