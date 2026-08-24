@@ -167,25 +167,46 @@ When both filters are supplied, a task must match both of them.
 
 ## Data Storage
 
-By default, EasyDone stores tasks in:
+EasyDone stores task data in a user-scoped application directory so it does not depend on where the command is launched from.
+
+On Windows:
 
 ```text
-data/tasks.json
+%APPDATA%\easydone-task-tracker\tasks.json
 ```
 
-The `data` directory is created automatically when the application saves its first task. The file uses a straightforward structure:
+On macOS:
+
+```text
+~/Library/Application Support/easydone-task-tracker/tasks.json
+```
+
+On Linux:
+
+```text
+~/.local/share/easydone-task-tracker/tasks.json
+```
+
+The app also writes a small metadata wrapper with the file schema version and the version of EasyDone that saved it. This keeps future upgrades safer and makes compatibility warnings explicit.
 
 ```json
 {
-	"123": {
-		"description": "Finish project report",
-		"status": "in-progress",
-		"priority": "high"
-	}
+    "schema_version": 1,
+    "app_version": "0.1.0",
+    "saved_at": "2026-08-24T07:44:34+00:00",
+    "tasks": {
+        "123": {
+            "description": "Finish project report",
+            "status": "in-progress",
+            "priority": "high",
+            "created-at": "2026-08-24",
+            "updated-at": null
+        }
+    }
 }
 ```
 
-The storage path is relative to the directory where the command is run. Run EasyDone from the project directory when using the default location.
+If an older file is found, EasyDone still loads it for compatibility but prints a warning so the user can review the data before saving again.
 
 ## Development
 

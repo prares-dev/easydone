@@ -1,7 +1,9 @@
 import json
+
 import pytest
 
 from easydone.storage import JSONHandler
+
 
 @pytest.fixture
 def tasks() -> dict[str, dict]:
@@ -11,36 +13,54 @@ def tasks() -> dict[str, dict]:
             "status": "not-done",
             "priority": "low",
             "created-at": "2026-08-22",
-            "updated-at": None
+            "updated-at": None,
         },
         "722": {
             "description": "do house shores",
             "status": "not-done",
             "priority": "low",
             "created-at": "2026-08-22",
-            "updated-at": "2026-08-22"
-        }
+            "updated-at": "2026-08-22",
+        },
     }
+
 
 def test_load_returns_existing_tasks(tmp_path, tasks):
     json_file = tmp_path / "tasks.json"
-    expected = tasks
+    payload = {
+        "schema_version": 1,
+        "app_version": "0.1.0",
+        "saved_at": "2026-08-24T00:00:00+00:00",
+        "tasks": tasks,
+    }
 
-    json_file.write_text(json.dumps(expected), encoding="utf-8")
+    json_file.write_text(json.dumps(payload), encoding="utf-8")
 
     handler = JSONHandler(str(json_file))
 
-    assert handler.load() == expected
+    assert handler.load() == tasks
 
 
 def test_save_writes_tasks_to_json_file(tmp_path, tasks):
     json_file = tmp_path / "tasks.json"
-    expected = tasks
 
     handler = JSONHandler(str(json_file))
-    handler.save(expected)
+    handler.save(tasks)
 
-    assert json.loads(json_file.read_text(encoding="utf-8")) == expected
+    saved_data = json.loads(json_file.read_text(encoding="utf-8"))
+
+    assert saved_data["schema_version"] == 1
+    assert saved_data["app_version"] == handler.app_version
+    assert saved_data["tasks"] == tasks
+
+
+def test_load_accepts_legacy_task_dictionary(tmp_path, tasks):
+    json_file = tmp_path / "tasks.json"
+    json_file.write_text(json.dumps(tasks), encoding="utf-8")
+
+    handler = JSONHandler(str(json_file))
+
+    assert handler.load() == tasks
 
 
 def test_load_returns_empty_dict_when_file_is_missing(tmp_path):
