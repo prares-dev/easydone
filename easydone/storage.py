@@ -115,10 +115,14 @@ class JSONHandler():
 
         self.json_file.parent.mkdir(parents=True, exist_ok=True)
 
+        # Record only the date (YYYY-MM-DD) to keep the saved_at field
+        # human-readable and easier to compare in the UI or logs. Storing
+        # date-only avoids timezone/microsecond details that are unnecessary
+        # for this application's needs.
         payload = {
             "schema_version": CURRENT_SCHEMA_VERSION,
             "app_version": self.app_version,
-            "saved_at": datetime.now().isoformat(),
+            "saved_at": datetime.now().date().isoformat(),
             "tasks": tasks,
         }
 
