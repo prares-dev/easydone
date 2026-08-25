@@ -1,5 +1,6 @@
 import argparse
 from .logic import TasksManager
+from .format import print_table
 
 SUPPORTED_STATUS = ["not-done", "done", "in-progress"]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
@@ -159,7 +160,12 @@ class CLIApp():
                 if not has_update_target:
                     self.main_parser.error("the update command requires at least one field change: --description or --priority")
                     
-            args.func(args)
+            if getattr(args, 'func', None) == self.tasks_manager.list:
+                filtered_ids = args.func(args)
+                print_table(self.tasks_manager.tasks, filtered_ids)
+                
+            else:
+                args.func(args)
         except AttributeError:
             # in case user invokes the program without arguments like in:
             # >>> easydone

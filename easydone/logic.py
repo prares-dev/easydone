@@ -58,7 +58,7 @@ class TasksManager():
         
         self.tasks.pop(id)
             
-    def list(self, args: Namespace):
+    def list(self, args: Namespace) -> list[str]:
         """ Shows all tasks. Filtered according to args.status and args.priority. """
         ids = []
         
@@ -69,17 +69,7 @@ class TasksManager():
             if (s_filt is None or value['status'] == s_filt) and (p_filt is None or value['priority'] == p_filt):
                 ids.append(key)
         
-        print("====================================")
-        print("EasyDone: Task-Tracker")
-        print("====================================")
-        for id in ids:
-            desc = self.tasks[id]['description']
-            prior = self.tasks[id]['priority']
-            stat = self.tasks[id]['status']
-            create = self.tasks[id]['created-at']
-            update = self.tasks[id]['updated-at']
-            print(f"ID: {id} \"{desc}\" [{prior}] [{stat}] [{create}], [{update}]")
-        print("====================================")
+        return ids
     
     def task_id(self) -> str:
         """ Returns a random id, formed by digits, the number of digits is determined by self.ID_SIZE"""

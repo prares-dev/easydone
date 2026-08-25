@@ -10,7 +10,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "Pedro A. Rosquete Ares", email = "rosquetearespedro06@gmail.com"}]
 license = { file = "LICENSE" }
-dependencies = []
+dependencies = ['rich>=13.0']
 
 [project.urls]
 Documentation = "https://github.com/prares-dev/easydone-task-tracker.git"

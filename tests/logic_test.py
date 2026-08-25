@@ -281,48 +281,45 @@ def test_update_delete_and_mark_raise_key_error_for_missing_tasks(new_instance):
     with pytest.raises(KeyError):
         delete_args.func(delete_args)
 
-def test_list_without_filters(from_json_instance, capsys):
-    """The list command without filters should print every task."""
+def test_list_without_filters(from_json_instance):
+    """The list command without filters should return every task ID."""
     args = from_json_instance.main_parser.parse_args(["list"])
 
-    args.func(args)
+    result = args.func(args)
 
-    output = capsys.readouterr().out
-    assert 'ID: 123 "read a book" [low] [not-done]' in output
-    assert 'ID: 456 "write code" [normal] [done]' in output
-    assert 'ID: 111 "go supermarket" [urgent] [in-progress]' in output
+    assert '123' in result
+    assert '456' in result
+    assert '111' in result
 
-def test_list_filters_by_status(from_json_instance, capsys):
-    """The status option should print only tasks with that status."""
+def test_list_filters_by_status(from_json_instance):
+    """The status option should return only tasks with that status."""
     args = from_json_instance.main_parser.parse_args([
         "list",
         "--status",
         "done",
     ])
 
-    args.func(args)
+    result = args.func(args)
 
-    output = capsys.readouterr().out
-    assert 'ID: 123 "read a book" [low] [not-done]' not in output
-    assert 'ID: 456 "write code" [normal] [done]' in output
-    assert 'ID: 111 "go supermarket" [urgent] [in-progress]' not in output
+    assert '123' not in result
+    assert '456' in result
+    assert '111' not in result
 
-def test_list_filters_by_priority(from_json_instance, capsys):
-    """The priority option should print only tasks with that priority."""
+def test_list_filters_by_priority(from_json_instance):
+    """The priority option should return only tasks with that priority."""
     args = from_json_instance.main_parser.parse_args([
         "list",
         "--priority",
         "low",
     ])
 
-    args.func(args)
+    result = args.func(args)
 
-    output = capsys.readouterr().out
-    assert 'ID: 123 "read a book" [low] [not-done]' in output
-    assert 'ID: 456 "write code" [normal] [done]' not in output
-    assert 'ID: 111 "go supermarket" [urgent] [in-progress]' not in output
+    assert '123' in result
+    assert '456' not in result
+    assert '111' not in result
 
-def test_list_filters_by_status_and_priority(from_json_instance, capsys):
+def test_list_filters_by_status_and_priority(from_json_instance):
     """Status and priority options should be applied together."""
     args = from_json_instance.main_parser.parse_args([
         "list",
@@ -332,9 +329,8 @@ def test_list_filters_by_status_and_priority(from_json_instance, capsys):
         "urgent",
     ])
 
-    args.func(args)
+    result = args.func(args)
 
-    output = capsys.readouterr().out
-    assert 'ID: 123 "read a book" [low] [not-done]' not in output
-    assert 'ID: 456 "write code" [normal] [done]' not in output
-    assert 'ID: 111 "go supermarket" [urgent] [in-progress]' in output
+    assert '123' not in result
+    assert '456' not in result
+    assert '111' in result
