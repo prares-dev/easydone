@@ -1,6 +1,7 @@
 import argparse
 from .logic import TasksManager
 from .format import print_table
+from . import __version__
 
 SUPPORTED_STATUS = ["not-done", "done", "in-progress"]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
@@ -20,6 +21,15 @@ class CLIApp():
             description = "Task-Tracker. Create, delete, edit, do.",
             epilog = "Thanks for using %(prog)s! :)\nAll feedback is appreciated.",
             allow_abbrev = False # disable auto option abbreviation
+        )
+        
+        # Shows the current version running
+        self.main_parser.add_argument(
+            '-v',
+            '--version',
+            help='Display app version.',
+            action="version",
+            version="%(prog)s " + __version__
         )
         
         # Sub-commands parser

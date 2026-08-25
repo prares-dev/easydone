@@ -18,6 +18,7 @@ checking.
 import pytest
 from datetime import datetime
 
+from easydone import __version__
 from easydone.cli import CLIApp
 from easydone.logic import TasksManager
 
@@ -63,6 +64,18 @@ def from_json_instance() -> CLIApp:
 # ===========
 # TESTS
 # ===========
+
+def test_get_current_verison(new_instance, capsys):
+    """Running -v or --version should output the correct version of the program."""
+    with pytest.raises(SystemExit):
+        new_instance.main_parser.parse_args(['-v'])
+        output = capsys.readouterr().out
+        assert __version__ in output
+    
+    with pytest.raises(SystemExit):
+        new_instance.main_parser.parse_args(['--version'])
+        output = capsys.readouterr().out
+        assert __version__ in output
 
 def test_empty_tasks_when_init(new_instance):
     """A new application should start with an empty task collection."""
