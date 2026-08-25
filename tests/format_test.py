@@ -44,9 +44,9 @@ def _reload_format_module(monkeypatch, *, rich_available):
             def __str__(self):
                 return self.text
 
-        console_mod.Console = FakeConsole
-        table_mod.Table = FakeTable
-        text_mod.Text = FakeText
+        console_mod.Console = FakeConsole   # type: ignore
+        table_mod.Table = FakeTable # type: ignore
+        text_mod.Text = FakeText    # type: ignore
 
         monkeypatch.setitem(sys.modules, "rich", rich_mod)
         monkeypatch.setitem(sys.modules, "rich.console", console_mod)
