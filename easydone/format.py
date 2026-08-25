@@ -1,20 +1,95 @@
-def print_table(tasks: dict[str, dict], ids: list[str]) -> None:
-    """ Prints the tasks using 'rich' package. Fallbacks to plain text if rich isn't available. """
-    try:
-        import rich
-        # Use rich
-    except ImportError:
-        print("Warning: Rich isn't available")
-        # Use plain text
+"""Output formatting helpers.
 
-        print("====================================")
-        print("EasyDone: Task-Tracker")
-        print("====================================")
-        for id in ids:
-            desc = tasks[id]['description']
-            prior = tasks[id]['priority']
-            stat = tasks[id]['status']
-            create = tasks[id].get('created-at', 'unknown')
-            update = tasks[id].get('updated-at', 'unknown')
-            print(f"ID: {id} \"{desc}\" [{prior}] [{stat}] [{create}], [{update}]")
-        print("====================================")
+This module centralizes all user-facing presentation logic so the CLI
+parsing and task-management logic remain separate. The primary function
+`print_table` prints a table of tasks. It attempts to use Rich for nicely
+styled tables and colors; when Rich is not available it falls back to a
+plain-text table so the application remains dependency-light.
+"""
+
+from typing import Dict, List
+
+try:
+    # Import the specific Rich helpers we need. If they are not available,
+    # the import will raise and the code will fall back to plain text.
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+    RICH_AVAILABLE = True
+except Exception:
+    RICH_AVAILABLE = False
+
+
+def _plain_print(tasks: Dict[str, dict], ids: List[str]) -> None:
+    """Plain-text fallback used when Rich is unavailable."""
+    print("====================================")
+    print("EasyDone: Task-Tracker")
+    print("====================================")
+    for task_id in ids:
+        # Use .get() so older or partially missing task dictionaries still print.
+        task = tasks[task_id]
+        desc = task.get('description', 'unknown')
+        prior = task.get('priority', 'unknown')
+        stat = task.get('status', 'unknown')
+        create = task.get('created-at', 'unknown')
+        update = task.get('updated-at', 'unknown')
+        print(f"ID: {task_id} \"{desc}\" [{prior}] [{stat}] [{create}], [{update}]")
+    print("====================================")
+
+
+def print_table(tasks: Dict[str, dict], ids: List[str]) -> None:
+    """Print a tasks table using Rich when available, otherwise use plain text.
+
+    Columns: ID, Description, Priority, Status, Created, Updated.
+    The status and priority values are highlighted in color when Rich is present.
+    """
+    if not ids:
+        print("No tasks to show.")
+        return
+
+    if not RICH_AVAILABLE:
+        _plain_print(tasks, ids)
+        return
+
+    # Build a Rich table in the presentation layer. This keeps formatting and
+    # colors separated from task logic and CLI argument parsing.
+    console = Console() # type: ignore
+    table = Table(show_header=True, header_style="bold magenta") # type: ignore
+    table.add_column("ID", style="dim", no_wrap=True)
+    table.add_column("Description")
+    table.add_column("Priority", no_wrap=True)
+    table.add_column("Status", no_wrap=True)
+    table.add_column("Created", no_wrap=True)
+    table.add_column("Updated", no_wrap=True)
+
+    priority_styles = {
+        "low": "dim",
+        "normal": "",
+        "high": "bold yellow",
+        "urgent": "bold red",
+    }
+    status_styles = {
+        "not-done": "yellow",
+        "in-progress": "cyan",
+        "done": "green",
+    }
+
+    for task_id in ids:
+        task = tasks[task_id]
+        desc = task.get('description', 'unknown')
+        prior = task.get('priority', 'unknown')
+        stat = task.get('status', 'unknown')
+        create = task.get('created-at', 'unknown')
+        update = task.get('updated-at', 'unknown')
+        update = '-' if update is None else update
+
+        table.add_row(
+            task_id,
+            Text(desc, overflow='ellipsis'),    # type: ignore
+            Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
+            Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+            create,
+            update,
+        )
+
+    console.print(table)
