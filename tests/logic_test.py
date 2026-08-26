@@ -2,7 +2,7 @@
 
 Pytest injects fixtures into a test function when their names appear in the
 function parameters. The local ``new_instance`` and ``from_json_instance``
-fixtures provide fresh ``CLIApp`` objects for each test. Built-in fixtures
+fixtures provide fresh ``Parser`` objects for each test. Built-in fixtures
 used here include:
 
 * ``monkeypatch`` temporarily replaces ``input`` so confirmation prompts can
@@ -19,7 +19,7 @@ import pytest
 from datetime import datetime
 
 from easydone import __version__
-from easydone.cli import CLIApp
+from easydone.cli import Parser
 from easydone.logic import TasksManager
 
 # ===========
@@ -27,17 +27,17 @@ from easydone.logic import TasksManager
 # ===========
 
 @pytest.fixture
-def new_instance() -> CLIApp:
+def new_instance() -> Parser:
     """Return a CLI application with no existing tasks."""
-    return CLIApp({})
+    return Parser(TasksManager({}))
 
 @pytest.fixture
-def from_json_instance() -> CLIApp:
+def from_json_instance() -> Parser:
     """Return a CLI application populated with representative task states."""
 
     date = str(datetime.now()).split(" ")[0]
 
-    return CLIApp({
+    manager = TasksManager({
         "123": {
             "description": "read a book",
             "status": "not-done",
@@ -60,6 +60,7 @@ def from_json_instance() -> CLIApp:
             "updated-at": None
         }
     })
+    return Parser(manager)
 
 # ===========
 # TESTS

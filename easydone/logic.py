@@ -24,7 +24,6 @@ class TasksManager():
             raise KeyError("Unexistent task")
 
         task = self.tasks[args.id]
-
         if hasattr(args, 'description') and args.description == task['description']:
             raise ValueError("New description must be different from the current description.")
 
