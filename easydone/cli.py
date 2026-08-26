@@ -158,6 +158,11 @@ class CLIApp():
             help="To list all tasks with a given priority.",
             choices=SUPPORTED_PRIORITIES,
             default=None)
+    
+        list_task_parser.add_argument(
+            "--no-dates", 
+            help="Not ouput dates.",
+            action="store_true")
         
         list_task_parser.set_defaults(func=self.tasks_manager.list)
 
@@ -182,6 +187,6 @@ class CLIApp():
 
         elif getattr(args, 'func', None) == self.tasks_manager.list:
             filtered_ids = args.func(args)
-            print_table(self.tasks_manager.tasks, filtered_ids)    
+            print_table(self.tasks_manager.tasks, filtered_ids, no_dates=args.no_dates)    
 
         else: args.func(args)

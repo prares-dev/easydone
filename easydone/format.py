@@ -20,7 +20,10 @@ except Exception:
     RICH_AVAILABLE = False
 
 
-def _plain_print(tasks: Dict[str, dict], ids: List[str]) -> None:
+def _plain_print(tasks: Dict[str, dict], 
+                ids: List[str], 
+                no_dates: bool = False
+                ) -> None:
     """Plain-text fallback used when Rich is unavailable."""
     print("====================================")
     print("EasyDone: Task-Tracker")
@@ -31,13 +34,16 @@ def _plain_print(tasks: Dict[str, dict], ids: List[str]) -> None:
         desc = task.get('description', 'unknown')
         prior = task.get('priority', 'unknown')
         stat = task.get('status', 'unknown')
-        create = task.get('created-at', 'unknown')
-        update = task.get('updated-at', 'unknown')
-        print(f"ID: {task_id} \"{desc}\" [{prior}] [{stat}] [{create}], [{update}]")
+        create = '[' + str(task.get('created-at', 'unknown')) + ']' if not no_dates else "" 
+        update = '[' + str(task.get('updated-at', 'unknown')) + ']' if not no_dates else "" 
+        print(f"ID: {task_id} \"{desc}\" [{prior}] [{stat}] {create} {update}")
     print("====================================")
 
 
-def print_table(tasks: Dict[str, dict], ids: List[str]) -> None:
+def print_table(tasks: Dict[str, dict], 
+                ids: List[str], 
+                no_dates: bool = False
+                ) -> None:
     """Print a tasks table using Rich when available, otherwise use plain text.
 
     Columns: ID, Description, Priority, Status, Created, Updated.
@@ -48,7 +54,7 @@ def print_table(tasks: Dict[str, dict], ids: List[str]) -> None:
         return
 
     if not RICH_AVAILABLE:
-        _plain_print(tasks, ids)
+        _plain_print(tasks, ids, no_dates=no_dates)
         return
 
     # Build a Rich table in the presentation layer. This keeps formatting and
@@ -59,8 +65,9 @@ def print_table(tasks: Dict[str, dict], ids: List[str]) -> None:
     table.add_column("Description")
     table.add_column("Priority", no_wrap=True)
     table.add_column("Status", no_wrap=True)
-    table.add_column("Created", no_wrap=True)
-    table.add_column("Updated", no_wrap=True)
+    if not no_dates:
+        table.add_column("Created", no_wrap=True)
+        table.add_column("Updated", no_wrap=True)
 
     priority_styles = {
         "low": "dim",
@@ -79,17 +86,26 @@ def print_table(tasks: Dict[str, dict], ids: List[str]) -> None:
         desc = task.get('description', 'unknown')
         prior = task.get('priority', 'unknown')
         stat = task.get('status', 'unknown')
-        create = task.get('created-at', 'unknown')
-        update = task.get('updated-at', 'unknown')
-        update = '-' if update is None else update
-
-        table.add_row(
-            task_id,
-            Text(desc, overflow='ellipsis'),    # type: ignore
-            Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
-            Text(stat, style=status_styles.get(stat, "")),  # type: ignore
-            create,
-            update,
-        )
-
+        create: str
+        update: str
+        if not no_dates:
+            create = task.get('created-at', 'unknown')
+            update = task.get('updated-at', 'unknown')
+            update = '-' if update is None else update
+            table.add_row(
+                task_id,
+                Text(desc, overflow='ellipsis'),    # type: ignore
+                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
+                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+                create,
+                update,
+            )
+        else:
+            table.add_row(
+                task_id,
+                Text(desc, overflow='ellipsis'),    # type: ignore
+                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
+                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+            )
+            
     console.print(table)
