@@ -18,13 +18,17 @@ EasyDone is a small, dependency-free Python CLI for creating, updating, completi
 ```text
 easydone-task-tracker/
 ├── easydone/
-│   ├── __main__.py   # Application entry point
-│   ├── cli.py        # Argument parser and commands
-│   ├── logic.py      # Task-management operations
-│   └── storage.py    # JSON loading and saving
+│   ├── __init__.py   # To acces package data like __version__.
+│   ├── __main__.py   # Application entry point.
+│   ├── cli.py        # Argument parser and commands.
+│   ├── logic.py      # Task-management operations.
+│   ├── storage.py    # JSON loading and saving.
+│   └── format.py     # Output formatting.
 ├── tests/
 │   ├── logic_test.py
-│   └── storage_test.py
+│   ├── storage_test.py
+│   └── format_test.py
+├── LICENCE
 ├── pyproject.toml    # Packaging and pytest configuration
 └── README.md
 ```
@@ -50,6 +54,11 @@ On macOS or Linux, use:
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
+```
+
+Or install from PyPi
+```powershell
+py -m pip install 'easydone-task-tracker'
 ```
 
 You can now run the application with:
@@ -116,12 +125,6 @@ Options:
 Change the description and/or priority of an existing task.
 
 ```text
-easydone update TASK_ID [--description NEW_DESCRIPTION] [--priority NEW_PRIORITY]
-```
-
-Examples:
-
-```text
 easydone update 123 --description "Read a novel"
 easydone update 123 --priority high
 ```
@@ -131,36 +134,24 @@ easydone update 123 --priority high
 Change the status of an existing task.
 
 ```text
-easydone mark TASK_ID STATUS
-```
-
-Example:
-
-```text
 easydone mark 123 in-progress
 ```
 
 ### `delete`
 
-Delete an existing task. EasyDone asks for confirmation unless `--forced` is used.
+Delete an existing task. EasyDone asks for confirmation unless `-f` or `--forced` is used.
 
 ```text
 easydone delete TASK_ID
 easydone delete TASK_ID --forced
 ```
 
-The short form is also available:
-
-```text
-easydone delete TASK_ID -f
-```
-
 ### `list`
 
-List all tasks or filter them by status and priority.
+List all tasks or filter them by status and priority. Can ommit dates with `--no-dates` option.
 
 ```text
-easydone list [--status STATUS] [--priority PRIORITY]
+easydone list [--status STATUS] [--priority PRIORITY] [--no-dates]
 ```
 
 When both filters are supplied, a task must match both of them.
@@ -193,7 +184,7 @@ The app also writes a small metadata wrapper with the file schema version and th
 {
     "schema_version": 1,
     "app_version": "0.1.0",
-    "saved_at": "2026-08-24T07:44:34+00:00",
+    "saved_at": "2026-08-24",
     "tasks": {
         "123": {
             "description": "Finish project report",
