@@ -128,21 +128,25 @@ class Parser():
         args: Namespace
         try:
             args = self.main_parser.parse_args()
-        except AttributeError:
-            # in case user invokes the program without arguments like:
-            # >>> easydone
-            self.main_parser.print_help()
-            return
         except ValueError as exc:
             self.main_parser.error(str(exc))
             return
 
+        if getattr(args, 'func', None) == self.tasks_manager.list:
+            filtered_ids = args.func(args)
+            print_table(self.tasks_manager.tasks, filtered_ids, no_dates=args.no_dates) 
+            return
+    
         if getattr(args, 'func', None) == self.tasks_manager.update:
             has_update_target = hasattr(args, 'description') or hasattr(args, 'priority')
             if not has_update_target:
                 self.main_parser.error("the update command requires at least one field change: --description or --priority")
-        elif getattr(args, 'func', None) == self.tasks_manager.list:
-            filtered_ids = args.func(args)
-            print_table(self.tasks_manager.tasks, filtered_ids, no_dates=args.no_dates)    
-        else: 
+
+        try:
             args.func(args)
+        except AttributeError:
+            # in case user invokes the program without arguments like:
+            # >>> easydone
+            self.main_parser.print_help()
+        except (ValueError, KeyError) as exc:
+            self.main_parser.error(str(exc))
