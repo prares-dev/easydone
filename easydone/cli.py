@@ -1,4 +1,4 @@
-import argparse
+from argparse import ArgumentParser, Namespace, SUPPRESS
 from .logic import TasksManager
 from .format import print_table
 from . import __version__
@@ -16,7 +16,7 @@ class CLIApp():
     
     def build_parser(self) -> None:
         """ Create the main parser and sub-commands. """
-        self.main_parser = argparse.ArgumentParser(
+        self.main_parser = ArgumentParser(
             prog = "EasyDone",
             description = "Task-Tracker. Create, delete, edit, do.",
             epilog = "Thanks for using %(prog)s! :)\nAll feedback is appreciated.",
@@ -33,25 +33,26 @@ class CLIApp():
         )
         
         # Sub-commands parser
-        self.actions_subparser = self.main_parser.add_subparsers(
+        actions_subparser = self.main_parser.add_subparsers(
             title="actions", 
-            help="Supported commands.")
+            help="Supported commands."
+            )
         
         # 'NEW' command
         # ====================
         
         # Create parser for 'new' command
-        self.new_task_parser = self.actions_subparser.add_parser(
+        new_task_parser = actions_subparser.add_parser(
             "new", 
             help="Create a new task")
         
-        self.new_task_parser.add_argument(
+        new_task_parser.add_argument(
             "description", 
             type=str, 
             help="Description of the task to be added.")
         
         # optional flag for indicating initial status
-        self.new_task_parser.add_argument(
+        new_task_parser.add_argument(
             "-s",
             "--status", 
             type=str, 
@@ -60,7 +61,7 @@ class CLIApp():
             default=SUPPORTED_STATUS[0])
         
         # optional flag for indicating initial priority
-        self.new_task_parser.add_argument(
+        new_task_parser.add_argument(
             "-p",
             "--priority", 
             type=str, 
@@ -69,80 +70,80 @@ class CLIApp():
             default=SUPPORTED_PRIORITIES[0])
         
         # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
-        self.new_task_parser.set_defaults(func=self.tasks_manager.new)
+        new_task_parser.set_defaults(func=self.tasks_manager.new)
         
         # 'UPDATE' command
         # ====================
-        self.update_task_parser = self.actions_subparser.add_parser(
+        update_task_parser = actions_subparser.add_parser(
             "update", 
             help="Update a task.",
-            argument_default=argparse.SUPPRESS)
+            argument_default=SUPPRESS)
         
-        self.update_task_parser.add_argument(
+        update_task_parser.add_argument(
             "id",
             type=str, 
             help="ID of the task to be updated.")
         
-        self.update_task_parser.add_argument(
+        update_task_parser.add_argument(
             "-d",
             "--description", 
             metavar="new-description",
             type=str, 
             help="Update description.")
         
-        self.update_task_parser.add_argument(
+        update_task_parser.add_argument(
             "-p",
             "--priority", 
             metavar="new-priority",
             type=str, 
             help="Update priority.")
 
-        self.update_task_parser.set_defaults(func=self.tasks_manager.update)
+        update_task_parser.set_defaults(func=self.tasks_manager.update)
         
         # 'MARK' command
         # ====================
-        self.mark_task_parser = self.actions_subparser.add_parser(
+        mark_task_parser = actions_subparser.add_parser(
             "mark", 
             help="Mark a task with a new status.")
         
-        self.mark_task_parser.add_argument(
+        mark_task_parser.add_argument(
             "id", 
             type=str, 
             help="ID of the task to be marked.")
-        self.mark_task_parser.add_argument(
+        mark_task_parser.add_argument(
             "new_status", 
             type=str, 
             help="The new status for the task.",
             choices=SUPPORTED_STATUS)
         
-        self.mark_task_parser.set_defaults(func=self.tasks_manager.mark)
+        mark_task_parser.set_defaults(func=self.tasks_manager.mark)
         
         # 'DELETE' command
         # ====================
-        self.del_task_parser = self.actions_subparser.add_parser(
+        del_task_parser = actions_subparser.add_parser(
             "delete", 
             help="Deletes a task.")
         
-        self.del_task_parser.add_argument(
+        del_task_parser.add_argument(
             "id", 
             type=str, 
             help="ID of the task to be deleted.")
         
-        self.del_task_parser.add_argument(
+        del_task_parser.add_argument(
             "-f", 
             "--forced",
             action="store_true",
             help="If not used, the user will be prompted for confirmation.")
         
-        self.del_task_parser.set_defaults(func=self.tasks_manager.delete)
+        del_task_parser.set_defaults(func=self.tasks_manager.delete)
         
         # 'LIST' command
         # ====================
-        self.list_task_parser = self.actions_subparser.add_parser(
+        list_task_parser = actions_subparser.add_parser(
             "list", 
             help="List all tasks.")
         
-        self.list_task_parser.add_argument(
+        list_task_parser.add_argument(
             "-s", 
             "--status",
             type=str, 
@@ -150,7 +151,7 @@ class CLIApp():
             choices=SUPPORTED_STATUS,
             default=None)
 
-        self.list_task_parser.add_argument(
+        list_task_parser.add_argument(
             "-p", 
             "--priority",
             type=str, 
@@ -158,27 +159,29 @@ class CLIApp():
             choices=SUPPORTED_PRIORITIES,
             default=None)
         
-        self.list_task_parser.set_defaults(func=self.tasks_manager.list)
+        list_task_parser.set_defaults(func=self.tasks_manager.list)
 
     def start_parsing(self) -> None:
         """ Parses the arguments passed. """
+        args: Namespace
         try:
             args = self.main_parser.parse_args()
-
-            if getattr(args, 'func', None) == self.tasks_manager.update:
-                has_update_target = hasattr(args, 'description') or hasattr(args, 'priority')
-                if not has_update_target:
-                    self.main_parser.error("the update command requires at least one field change: --description or --priority")
-                    
-            if getattr(args, 'func', None) == self.tasks_manager.list:
-                filtered_ids = args.func(args)
-                print_table(self.tasks_manager.tasks, filtered_ids)
-                
-            else:
-                args.func(args)
         except AttributeError:
-            # in case user invokes the program without arguments like in:
+            # in case user invokes the program without arguments like:
             # >>> easydone
             self.main_parser.print_help()
+            return
         except ValueError as exc:
             self.main_parser.error(str(exc))
+            return
+
+        if getattr(args, 'func', None) == self.tasks_manager.update:
+            has_update_target = hasattr(args, 'description') or hasattr(args, 'priority')
+            if not has_update_target:
+                self.main_parser.error("the update command requires at least one field change: --description or --priority")
+
+        elif getattr(args, 'func', None) == self.tasks_manager.list:
+            filtered_ids = args.func(args)
+            print_table(self.tasks_manager.tasks, filtered_ids)    
+
+        else: args.func(args)
