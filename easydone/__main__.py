@@ -1,7 +1,7 @@
 from .cli import Parser
 from .logic import TasksManager
 from .storage import JSONHandler
-from .format import describe_load_result, report_backup_err
+from .format import describe_load_result, report_backup
 
 def main() -> None:
     # JSONHandler instance for load/save in .json.
@@ -19,7 +19,7 @@ def main() -> None:
     # save tasks before exiting only if mutated status
     if mutated:
         backup_done = handler.save(manager.tasks)
-        if not backup_done: report_backup_err()
+        report_backup(backup_done)
 
 if __name__ == "__main__":
     main()

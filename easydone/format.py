@@ -148,10 +148,11 @@ def describe_load_result(result: LoadingResult) -> None:
     else:
         print(msg)
 
-def report_backup_err():
-    msg = "Warning: Couldn't backup data."
+def report_backup(backup_done: bool):
+    text = "Backup succesfully done" if backup_done else "Warning: Couldn't backup"
+    style = 'green' if backup_done else 'yellow'
     if RICH_AVAILABLE:
-        console = Console()                     # type: ignore
-        console.print(Text(msg, style='yellow'))   # type: ignore
+        console = Console()     # type: ignore
+        console.print(Text(text=text, style=style)) # type: ignore
     else:
-        print(msg)
+        print(text)
