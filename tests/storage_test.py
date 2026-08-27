@@ -208,12 +208,9 @@ def test_load_warns_on_app_version_mismatch(tmp_path, tasks):
     assert "was written by EasyDone" in result.msg
 
 
-def test_load_app_version_mismatch_overrides_schema_warning_message(tmp_path, tasks):
+def test_load_app_version_mismatch_dont_overrides_schema_warning_message(tmp_path, tasks):
     """
-    NOTE: _warn_msg_version_mismatch only returns one message, and the
-    app_version check runs last, so if both a schema mismatch and an
-    app_version mismatch are present simultaneously, the schema warning
-    is silently overwritten and never surfaced to the user.
+    If both schema and app versions mismatches then both warnings should be recorded in the msg.
     """
     json_file = tmp_path / "tasks.json"
     _write_payload(
@@ -228,4 +225,4 @@ def test_load_app_version_mismatch_overrides_schema_warning_message(tmp_path, ta
 
     assert result.warning is True
     assert "was written by EasyDone" in result.msg
-    assert "newer data schema" not in result.msg
+    assert "newer data schema" in result.msg

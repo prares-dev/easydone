@@ -59,18 +59,18 @@ class JSONHandler():
 
     def _warn_msg_version_mismatch(self, schema_version: int, app_version: str) -> Optional[str]:
         """Warn when a file was created by a different app or data schema."""
-        warning_msg = None
+        warning_msg = ""
         
         if schema_version > CURRENT_SCHEMA_VERSION:
-            warning_msg = ( f"Warning: {self.json_file} was created with a newer data schema "
-                            f"({schema_version}) than this app supports ({CURRENT_SCHEMA_VERSION}). Review task data before saving." )
+            warning_msg += (f"Warning: {self.json_file} was created with a newer data schema "
+                            f"({schema_version}) than this app supports ({CURRENT_SCHEMA_VERSION}). Review task data before saving.")
             
         elif schema_version < CURRENT_SCHEMA_VERSION:
-            warning_msg = ( f"Warning: {self.json_file} uses an older data schema ({schema_version}). "
+            warning_msg += (f"Warning: {self.json_file} uses an older data schema ({schema_version}). "
                             f"This app expects version {CURRENT_SCHEMA_VERSION}. Review task data before saving." )
             
         if app_version and app_version != self.app_version:
-            warning_msg = ( f"Warning: {self.json_file} was written by EasyDone {app_version}, while "
+            warning_msg += (f"Warning: {self.json_file} was written by EasyDone {app_version}, while "
                             f"this session is running {self.app_version}. Review task data before saving.")
 
         return warning_msg
