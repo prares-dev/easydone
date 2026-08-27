@@ -3,6 +3,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from typing import Optional, NamedTuple
 
 from . import __version__
 
@@ -44,69 +45,65 @@ def default_storage_path() -> Path:
     return base_dir / "easydone-task-tracker" / "tasks.json"
 
 
+class LoadingResult(NamedTuple):
+    corrupted: bool = False
+    warning: bool = False
+    msg: str = "Loading task succesfully completed..."
+    tasks: dict[str, dict] = {}
+
 class JSONHandler():
-    def __init__(self, json_file: str | None = None):
+    def __init__(self, json_file: Optional[str] = None):
         """Initialize a storage handler with a stable absolute data file path."""
         self.app_version = __version__
         self.json_file = Path(json_file).expanduser() if json_file else default_storage_path()
 
-    def _warn_version_mismatch(self, schema_version: int, app_version: str) -> None:
+    def _warn_msg_version_mismatch(self, schema_version: int, app_version: str) -> Optional[str]:
         """Warn when a file was created by a different app or data schema."""
+        warning_msg = None
+        
         if schema_version > CURRENT_SCHEMA_VERSION:
-            print(
-                f"Warning: {self.json_file} was created with a newer data schema "
-                f"({schema_version}) than this app supports ({CURRENT_SCHEMA_VERSION}). "
-                "Proceeding carefully."
-            )
+            warning_msg = ( f"Warning: {self.json_file} was created with a newer data schema "
+                            f"({schema_version}) than this app supports ({CURRENT_SCHEMA_VERSION}). Review task data before saving." )
+            
         elif schema_version < CURRENT_SCHEMA_VERSION:
-            print(
-                f"Warning: {self.json_file} uses an older data schema ({schema_version}). "
-                f"This app expects version {CURRENT_SCHEMA_VERSION}."
-            )
-
+            warning_msg = ( f"Warning: {self.json_file} uses an older data schema ({schema_version}). "
+                            f"This app expects version {CURRENT_SCHEMA_VERSION}. Review task data before saving." )
+            
         if app_version and app_version != self.app_version:
-            print(
-                f"Warning: {self.json_file} was written by EasyDone {app_version}, while "
-                f"this session is running {self.app_version}. Review task data before saving."
-            )
+            warning_msg = ( f"Warning: {self.json_file} was written by EasyDone {app_version}, while "
+                            f"this session is running {self.app_version}. Review task data before saving.")
 
-    def _is_legacy_task_store(self, payload: object) -> bool:
-        """Legacy files were plain task dictionaries without metadata wrappers."""
-        return isinstance(payload, dict) and "tasks" not in payload and not any(
-            key in payload for key in ("schema_version", "app_version", "saved_at")
-        )
+        return warning_msg
 
-    def load(self) -> dict[str, dict]:
-        """Load tasks from the JSON file while tolerating legacy task stores."""
+    def load(self) -> LoadingResult:
+        """Load tasks from the JSON file."""
         try:
             with open(self.json_file, 'r', encoding='utf-8') as file:
                 payload = json.load(file)
         except FileNotFoundError:
-            print(f'{self.json_file} does not exist.')
-            print("Starting with empty task list...")
-            return {}
+            msg = f"{self.json_file} does not exist. Starting with empty task list..."
+            return LoadingResult(msg=msg, tasks={})
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
-            print(f"Warning: {self.json_file} is unreadable or malformed. Starting with empty task list...")
-            return {}
-
-        if self._is_legacy_task_store(payload):
-            print(f"Warning: {self.json_file} uses the legacy task format. Loading this file as-is.")
-            return payload
+            msg = f"{self.json_file} is unreadable or malformed. Starting with empty task list..."
+            return LoadingResult(corrupted=True, msg=msg, tasks={})
 
         if not isinstance(payload, dict):
-            print(f"Warning: {self.json_file} does not contain a task dictionary. Starting with empty task list...")
-            return {}
+            msg = f"{self.json_file} does not contain a task dictionary."
+            return LoadingResult(corrupted=True, msg=msg, tasks={})
 
         tasks = payload.get("tasks")
         schema_version = payload.get("schema_version", 0)
         app_version = payload.get("app_version", "unknown")
 
         if not isinstance(tasks, dict):
-            print(f"Warning: {self.json_file} is missing a valid tasks payload. Starting with empty task list...")
-            return {}
+            msg = f"Warning: {self.json_file} is missing a valid tasks payload. Starting with empty task list..."
+            return LoadingResult(corrupted=True, msg=msg, tasks={})
 
-        self._warn_version_mismatch(schema_version, app_version)
-        return tasks
+        warn_msg = self._warn_msg_version_mismatch(schema_version, app_version)
+        if warn_msg:
+            return LoadingResult(warning=True, msg=warn_msg, tasks=tasks)
+        else:
+            return LoadingResult(tasks=tasks)
 
     def save(self, tasks: dict[str, dict]) -> None:
         """Persist tasks with metadata so upgrades can be reviewed safely."""
