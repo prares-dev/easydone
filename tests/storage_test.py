@@ -3,7 +3,7 @@ import json
 import pytest
 
 from easydone import __version__
-from easydone.storage import JSONHandler, LoadingResult, CURRENT_SCHEMA_VERSION
+from easydone.storage import JSONHandler, LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
 
 
 @pytest.fixture
@@ -53,8 +53,7 @@ def test_load_returns_existing_tasks_with_no_warnings(tmp_path, tasks):
 
     assert isinstance(result, LoadingResult)
     assert result.tasks == tasks
-    assert result.corrupted is False
-    assert result.warning is False
+    assert result.status is LoadStatus.OK
 
 
 def test_save_writes_tasks_to_json_file(tmp_path, tasks):
@@ -80,9 +79,7 @@ def test_save_then_load_round_trips_without_warnings(tmp_path, tasks):
     result = handler.load()
 
     assert result.tasks == tasks
-    assert result.corrupted is False
-    assert result.warning is False
-
+    assert result.status is LoadStatus.OK
 
 # ==========================
 # Missing file (not corrupted)
@@ -96,9 +93,7 @@ def test_load_returns_empty_result_when_file_is_missing(tmp_path):
     result = handler.load()
 
     assert result.tasks == {}
-    assert result.corrupted is False
-    assert result.warning is False
-    assert "does not exist" in result.msg
+    assert result.status is LoadStatus.MISSING
     assert not missing_file.exists()
 
 
@@ -114,9 +109,8 @@ def test_load_flags_malformed_json_as_corrupted(tmp_path):
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.corrupted is True
+    assert result.status is LoadStatus.CORRUPTED
     assert result.tasks == {}
-    assert "unreadable or malformed" in result.msg
 
 
 def test_load_flags_non_dict_payload_as_corrupted(tmp_path):
@@ -127,7 +121,7 @@ def test_load_flags_non_dict_payload_as_corrupted(tmp_path):
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.corrupted is True
+    assert result.status is LoadStatus.CORRUPTED
     assert result.tasks == {}
 
 
@@ -146,7 +140,7 @@ def test_load_flags_wrapperless_dict_as_corrupted(tmp_path, tasks):
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.corrupted is True
+    assert result.status is LoadStatus.CORRUPTED
     assert result.tasks == {}
 
 
@@ -158,7 +152,7 @@ def test_load_flags_non_dict_tasks_field_as_corrupted(tmp_path):
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.corrupted is True
+    assert result.status is LoadStatus.CORRUPTED
     assert result.tasks == {}
 
 
@@ -174,10 +168,10 @@ def test_load_warns_on_newer_schema_version(tmp_path, tasks):
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.warning is True
-    assert result.corrupted is False
+    assert result.found_schema_version == CURRENT_SCHEMA_VERSION + 1
+    assert result.schema_mismatch is True
+    assert result.status is LoadStatus.OK
     assert result.tasks == tasks
-    assert "newer data schema" in result.msg
 
 
 def test_load_warns_on_older_schema_version(tmp_path, tasks):
@@ -188,10 +182,10 @@ def test_load_warns_on_older_schema_version(tmp_path, tasks):
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.warning is True
-    assert result.corrupted is False
+    assert result.status is LoadStatus.OK
+    assert result.found_schema_version == 0
+    assert result.schema_mismatch is True
     assert result.tasks == tasks
-    assert "older data schema" in result.msg
 
 
 def test_load_warns_on_app_version_mismatch(tmp_path, tasks):
@@ -202,18 +196,15 @@ def test_load_warns_on_app_version_mismatch(tmp_path, tasks):
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.warning is True
-    assert result.corrupted is False
+    assert result.status is LoadStatus.OK
+    assert result.found_app_version == "0.0.1-not-current"
+    assert result.app_mismatch is True
     assert result.tasks == tasks
-    assert "was written by EasyDone" in result.msg
 
 
-def test_load_app_version_mismatch_overrides_schema_warning_message(tmp_path, tasks):
+def test_load_app_version_mismatch_dont_overrides_schema_warning_message(tmp_path, tasks):
     """
-    NOTE: _warn_msg_version_mismatch only returns one message, and the
-    app_version check runs last, so if both a schema mismatch and an
-    app_version mismatch are present simultaneously, the schema warning
-    is silently overwritten and never surfaced to the user.
+    If both schema and app versions mismatches then both warnings should be recorded in the msg.
     """
     json_file = tmp_path / "tasks.json"
     _write_payload(
@@ -226,6 +217,9 @@ def test_load_app_version_mismatch_overrides_schema_warning_message(tmp_path, ta
     handler = JSONHandler(str(json_file))
     result = handler.load()
 
-    assert result.warning is True
-    assert "was written by EasyDone" in result.msg
-    assert "newer data schema" not in result.msg
+    assert result.status is LoadStatus.OK
+    assert result.found_app_version == "0.0.1-not-current"
+    assert result.found_schema_version == CURRENT_SCHEMA_VERSION + 1
+    assert result.app_mismatch is True
+    assert result.schema_mismatch is True
+    assert result.tasks == tasks

@@ -1,14 +1,16 @@
 import json
 import os
 import sys
+import shutil
+import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, NamedTuple
+from typing import Optional, NamedTuple, Any
+from enum import Enum
 
 from . import __version__
 
 CURRENT_SCHEMA_VERSION = 1
-
 
 def default_storage_path() -> Path:
     """Return a stable, user-scoped path for EasyDone task data.
@@ -44,78 +46,103 @@ def default_storage_path() -> Path:
     # Keep the final data file path deterministic and easy to locate.
     return base_dir / "easydone-task-tracker" / "tasks.json"
 
+class LoadStatus(Enum):
+    OK = "ok"
+    MISSING = "missing"
+    CORRUPTED = "corrupted"
 
 class LoadingResult(NamedTuple):
-    corrupted: bool = False
-    warning: bool = False
-    msg: str = "Loading task succesfully completed..."
     tasks: dict[str, dict] = {}
+    status: LoadStatus = LoadStatus.OK
+    file_path: Optional[Path] = None
+    backup_path: Optional[Path] = None
+    found_schema_version: Optional[int] = None
+    found_app_version: Optional[str] = None
+    schema_mismatch: bool = False
+    app_mismatch: bool = False
 
 class JSONHandler():
     def __init__(self, json_file: Optional[str] = None):
-        """Initialize a storage handler with a stable absolute data file path."""
+        """
+        Initialize a storage handler with a stable absolute data file path.
+        """
         self.app_version = __version__
         self.json_file = Path(json_file).expanduser() if json_file else default_storage_path()
 
-    def _warn_msg_version_mismatch(self, schema_version: int, app_version: str) -> Optional[str]:
-        """Warn when a file was created by a different app or data schema."""
-        warning_msg = None
-        
-        if schema_version > CURRENT_SCHEMA_VERSION:
-            warning_msg = ( f"Warning: {self.json_file} was created with a newer data schema "
-                            f"({schema_version}) than this app supports ({CURRENT_SCHEMA_VERSION}). Review task data before saving." )
-            
-        elif schema_version < CURRENT_SCHEMA_VERSION:
-            warning_msg = ( f"Warning: {self.json_file} uses an older data schema ({schema_version}). "
-                            f"This app expects version {CURRENT_SCHEMA_VERSION}. Review task data before saving." )
-            
-        if app_version and app_version != self.app_version:
-            warning_msg = ( f"Warning: {self.json_file} was written by EasyDone {app_version}, while "
-                            f"this session is running {self.app_version}. Review task data before saving.")
-
-        return warning_msg
+    def _backup(self, file_path: Optional[str | Path] = None) -> dict[str, Any]:
+        """
+        Backups a file, returns the backup path if succeed, else returns the exception raised.
+        """
+        try:
+            file_path = Path(file_path) if file_path else self.json_file
+            backup_path = file_path.with_suffix(file_path.suffix + '.bak')
+            shutil.copy2(file_path, backup_path)
+            return {"backup_path": backup_path, "backup_exception": None}
+        except (PermissionError, MemoryError) as exc:
+            return {"backup_path": None, "backup_exception": exc}
+    
+    def _quarantine_corrupted_file(self) -> Path:
+        """Preserve a corrupted file for inspection instead of silently discarding it."""
+        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+        quarantine_path = self.json_file.with_name(
+            f"{self.json_file.stem}.corrupted-{timestamp}{self.json_file.suffix}"
+        )
+        shutil.copy2(self.json_file, quarantine_path)
+        return quarantine_path
 
     def load(self) -> LoadingResult:
         """Load tasks from the JSON file."""
+        # load file's content into payload or handle exception
         try:
             with open(self.json_file, 'r', encoding='utf-8') as file:
                 payload = json.load(file)
         except FileNotFoundError:
-            msg = f"{self.json_file} does not exist. Starting with empty task list..."
-            return LoadingResult(msg=msg, tasks={})
+            return LoadingResult(
+                tasks={}, status=LoadStatus.MISSING, file_path=self.json_file
+                )
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
-            msg = f"{self.json_file} is unreadable or malformed. Starting with empty task list..."
-            return LoadingResult(corrupted=True, msg=msg, tasks={})
+            backup_path = self._quarantine_corrupted_file()
+            return LoadingResult(
+                tasks={}, status=LoadStatus.CORRUPTED, 
+                file_path=self.json_file, backup_path=backup_path
+                )
 
+        # unexpected format of content loaded
         if not isinstance(payload, dict):
-            msg = f"{self.json_file} does not contain a task dictionary."
-            return LoadingResult(corrupted=True, msg=msg, tasks={})
+            backup_path = self._quarantine_corrupted_file()
+            return LoadingResult(
+                tasks={}, status=LoadStatus.CORRUPTED, 
+                file_path=self.json_file, backup_path=backup_path
+                )
 
+        # try to get metadata from dict loaded
         tasks = payload.get("tasks")
         schema_version = payload.get("schema_version", 0)
         app_version = payload.get("app_version", "unknown")
 
+        # unexpected format of tasks
         if not isinstance(tasks, dict):
-            msg = f"Warning: {self.json_file} is missing a valid tasks payload. Starting with empty task list..."
-            return LoadingResult(corrupted=True, msg=msg, tasks={})
+            backup_path = self._quarantine_corrupted_file()
+            return LoadingResult(
+                tasks={}, status=LoadStatus.CORRUPTED, 
+                file_path=self.json_file, backup_path=backup_path
+                )
 
-        warn_msg = self._warn_msg_version_mismatch(schema_version, app_version)
-        if warn_msg:
-            return LoadingResult(warning=True, msg=warn_msg, tasks=tasks)
-        else:
-            return LoadingResult(tasks=tasks)
+        return LoadingResult(
+            tasks=tasks, status=LoadStatus.OK, file_path=self.json_file,
+            found_schema_version = schema_version,
+            found_app_version = app_version,
+            schema_mismatch = schema_version != CURRENT_SCHEMA_VERSION,
+            app_mismatch = app_version != self.app_version
+            )
 
-    def save(self, tasks: dict[str, dict]) -> None:
-        """Persist tasks with metadata so upgrades can be reviewed safely."""
+    def save(self, tasks: dict[str, dict]) -> bool:
+        """Persist tasks with metadata so upgrades can be reviewed safely. Return True or False wether backup was done or not."""
         if not isinstance(tasks, dict):
             raise TypeError("tasks must be a dictionary of task records")
 
         self.json_file.parent.mkdir(parents=True, exist_ok=True)
 
-        # Record only the date (YYYY-MM-DD) to keep the saved_at field
-        # human-readable and easier to compare in the UI or logs. Storing
-        # date-only avoids timezone/microsecond details that are unnecessary
-        # for this application's needs.
         payload = {
             "schema_version": CURRENT_SCHEMA_VERSION,
             "app_version": self.app_version,
@@ -123,5 +150,25 @@ class JSONHandler():
             "tasks": tasks,
         }
 
-        with open(self.json_file, 'w', encoding='utf-8') as file:
-            json.dump(payload, file, indent=4)
+        # Keep the last known-good file before touching it.
+        backup_path: Optional[Path] = None
+        try:
+            backup_path = self.json_file.with_suffix(self.json_file.suffix + ".bak")
+            shutil.copy2(self.json_file, backup_path)
+        except (PermissionError, MemoryError, FileNotFoundError):
+            pass
+    
+        # Write to a temp file in the SAME directory (matters: os.replace across
+        # filesystems isn't atomic), then swap it in as one step.
+        fd, tmp_path = tempfile.mkstemp(
+            dir=self.json_file.parent, prefix=".tasks-", suffix=".tmp"
+        )
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
+                json.dump(payload, tmp_file, indent=4)
+            os.replace(tmp_path, self.json_file)  # atomic on POSIX AND Windows
+        except Exception:
+            os.unlink(tmp_path)  # don't leave stray .tmp files on failure
+            raise
+        
+        return isinstance(backup_path, Path)
