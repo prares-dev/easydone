@@ -146,7 +146,7 @@ class JSONHandler():
             )
 
     def save(self, tasks: dict[str, dict]) -> dict[str, Any]:
-        """Persist tasks with metadata so upgrades can be reviewed safely. Return True or False wether backup was done or not."""
+        """Persist tasks with metadata so upgrades can be reviewed safely. Returns a dict containing backup results."""
         if not isinstance(tasks, dict):
             raise TypeError("tasks must be a dictionary of task records")
 

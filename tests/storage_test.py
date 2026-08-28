@@ -1,4 +1,7 @@
 import json
+import os
+import shutil
+from pathlib import Path
 
 import pytest
 
@@ -80,6 +83,7 @@ def test_save_then_load_round_trips_without_warnings(tmp_path, tasks):
 
     assert result.tasks == tasks
     assert result.status is LoadStatus.OK
+
 
 # ==========================
 # Missing file (not corrupted)
@@ -223,3 +227,116 @@ def test_load_app_version_mismatch_dont_overrides_schema_warning_message(tmp_pat
     assert result.app_mismatch is True
     assert result.schema_mismatch is True
     assert result.tasks == tasks
+
+
+# ================================================================
+# NEW TESTS: Backup (save) and Quarantine (load) behavior
+# These cover the refactored _backup() and its integration
+# ================================================================
+
+def test_save_creates_backup_and_returns_dict_with_path_when_file_exists(tmp_path, tasks):
+    """If tasks.json already exists, save() should:
+    - Copy it to tasks.json.bak
+    - Return a dict with backup_path set (and backup_exception None)
+    - Write the new data to the main file
+    """
+    json_file = tmp_path / "tasks.json"
+    initial_content = {"some": "old data"}
+    json_file.write_text(json.dumps(initial_content), encoding="utf-8")
+
+    handler = JSONHandler(str(json_file))
+    save_result = handler.save(tasks)
+
+    # Backup exists and contains the old content
+    backup_file = json_file.with_suffix(json_file.suffix + ".bak")
+    assert backup_file.exists()
+    assert json.loads(backup_file.read_text(encoding="utf-8")) == initial_content
+
+    # Main file contains the new tasks
+    saved_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert saved_data["tasks"] == tasks
+
+    # save() returns dict with backup_path set, no exception
+    assert save_result["backup_path"] == backup_file
+    assert save_result["backup_exception"] is None
+
+
+def test_save_returns_dict_with_none_path_and_exception_when_file_does_not_exist(tmp_path, tasks):
+    """If tasks.json does not exist, save() should:
+    - NOT create a .bak file (copy2 raises FileNotFoundError)
+    - Return a dict with backup_path=None and backup_exception set to FileNotFoundError
+    - Still write the main file correctly
+    """
+    json_file = tmp_path / "tasks.json"
+    assert not json_file.exists()
+
+    handler = JSONHandler(str(json_file))
+    save_result = handler.save(tasks)
+
+    backup_file = json_file.with_suffix(json_file.suffix + ".bak")
+    assert not backup_file.exists()
+
+    saved_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert saved_data["tasks"] == tasks
+
+    assert save_result["backup_path"] is None
+    assert isinstance(save_result["backup_exception"], FileNotFoundError)
+
+
+def test_save_backup_failure_does_not_block_write_and_returns_dict_with_exception(tmp_path, tasks, monkeypatch):
+    """If shutil.copy2 fails during backup (e.g. PermissionError), save() should:
+    - Still write the main file
+    - NOT leave a partial .bak file behind
+    - Return a dict with backup_path=None and backup_exception set to the caught error
+    """
+    json_file = tmp_path / "tasks.json"
+    initial_content = {"some": "old data"}
+    json_file.write_text(json.dumps(initial_content), encoding="utf-8")
+
+    # Mock copy2 to raise PermissionError
+    def failing_copy(*args, **kwargs):
+        raise PermissionError("Forbidden")
+
+    monkeypatch.setattr(shutil, "copy2", failing_copy)
+
+    handler = JSONHandler(str(json_file))
+    save_result = handler.save(tasks)
+
+    # Main file is still written correctly
+    saved_data = json.loads(json_file.read_text(encoding="utf-8"))
+    assert saved_data["tasks"] == tasks
+
+    # No .bak file should exist (the failed copy should be cleaned up)
+    backup_file = json_file.with_suffix(json_file.suffix + ".bak")
+    assert not backup_file.exists()
+
+    # save() returns dict with backup_path=None and the caught exception
+    assert save_result["backup_path"] is None
+    assert isinstance(save_result["backup_exception"], PermissionError)
+
+
+def test_load_corrupted_file_quarantine_failure_returns_backup_path_none(tmp_path, monkeypatch):
+    """If copying the corrupted file to quarantine fails, load() should:
+    - NOT crash
+    - Still return status CORRUPTED
+    - Set backup_path to None
+    - Return empty tasks
+    """
+    json_file = tmp_path / "tasks.json"
+    json_file.write_text("{not valid", encoding="utf-8")
+
+    # Mock copy2 to raise PermissionError
+    def failing_copy(*args, **kwargs):
+        raise PermissionError("Forbidden")
+
+    monkeypatch.setattr(shutil, "copy2", failing_copy)
+
+    handler = JSONHandler(str(json_file))
+    result = handler.load()
+
+    assert result.status is LoadStatus.CORRUPTED
+    assert result.tasks == {}
+    assert result.backup_path is None
+
+    # Original file still exists
+    assert json_file.exists()

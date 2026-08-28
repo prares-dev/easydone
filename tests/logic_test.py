@@ -232,6 +232,8 @@ def test_mark_task_status(from_json_instance):
 
     assert tasks["456"]["status"] == "done"
 
+# ---- Delete command tests (including multi-ID behavior) ----
+
 def test_delete_existing_task(from_json_instance):
     """The forced delete option should remove a task without prompting."""
     tasks = from_json_instance.tasks_manager.tasks
@@ -267,6 +269,68 @@ def test_keep_task_when_deletion_is_rejected(from_json_instance, monkeypatch):
 
     assert "123" in from_json_instance.tasks_manager.tasks
 
+def test_delete_multiple_existing_tasks_forced(from_json_instance):
+    """With -f, delete multiple IDs should remove all of them."""
+    tasks = from_json_instance.tasks_manager.tasks
+    args = from_json_instance.main_parser.parse_args([
+        "delete", "123", "456", "-f"
+    ])
+    args.func(args)
+
+    assert "123" not in tasks
+    assert "456" not in tasks
+    # Third task remains
+    assert "111" in tasks
+
+def test_delete_multiple_tasks_with_confirmation(from_json_instance, monkeypatch):
+    """When deleting multiple IDs, each ID should prompt; answering 'y' for all deletes them."""
+    # Simulate 'y' for both prompts
+    inputs = iter(["y", "y"])
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+
+    tasks = from_json_instance.tasks_manager.tasks
+    args = from_json_instance.main_parser.parse_args(["delete", "123", "456"])
+    args.func(args)
+
+    assert "123" not in tasks
+    assert "456" not in tasks
+    assert "111" in tasks
+
+def test_delete_multiple_tasks_one_cancelled_keeps_others(from_json_instance, monkeypatch):
+    """If user declines one ID, others are still deleted (validation passed, but per-ID confirmation).
+    The order of processing shouldn't matter – we only check that exactly one of the two
+    target IDs is removed (the one confirmed) and the other remains.
+    """
+    inputs = iter(["y", "n"])
+    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+    tasks = from_json_instance.tasks_manager.tasks
+    args = from_json_instance.main_parser.parse_args(["delete", "123", "456"])
+    args.func(args)
+
+    # Exactly two tasks remain (111 plus one of the two targets)
+    assert len(tasks) == 2
+    assert "111" in tasks
+    # Exactly one of the two target IDs was deleted (the one confirmed with "y")
+    assert ("123" in tasks) != ("456" in tasks)
+
+def test_delete_mixed_valid_and_invalid_raises_error_no_deletion(from_json_instance):
+    """If any provided ID is missing, delete should raise KeyError and delete nothing."""
+    tasks = from_json_instance.tasks_manager.tasks
+    initial_ids = set(tasks.keys())
+
+    args = from_json_instance.main_parser.parse_args([
+        "delete", "123", "999", "456", "-f"
+    ])
+
+    with pytest.raises(KeyError) as exc_info:
+        args.func(args)
+
+    # The KeyError should mention the missing IDs (implementation-dependent)
+    # At minimum, we check that no deletion occurred.
+    assert set(tasks.keys()) == initial_ids
+    # Optionally, assert that the error message contains "999"
+    assert "999" in str(exc_info.value)
+
 def test_update_delete_and_mark_raise_key_error_for_missing_tasks(new_instance):
     """Update, mark, and delete should reject unknown task IDs."""
     update_args = new_instance.main_parser.parse_args([
@@ -294,6 +358,8 @@ def test_update_delete_and_mark_raise_key_error_for_missing_tasks(new_instance):
     
     with pytest.raises(KeyError):
         delete_args.func(delete_args)
+
+# ---- List command tests ----
 
 def test_list_without_filters(from_json_instance):
     """The list command without filters should return every task ID."""
