@@ -49,9 +49,10 @@ class TasksManager():
     def delete(self, args: Namespace):
         """ Deletes a list of tasks. """
         for id in args.ids:
-            if id not in self.tasks:
-                raise KeyError("Unexistent task")
-
+            if id not in self.tasks: 
+                raise KeyError(f"Unexistent task ({id})")
+        
+        for id in set(args.ids):
             if not args.forced:
                 if not yes_no(f"are you sure u want to delete the task {id}:\"{self.tasks[id]['description']}\" ?"):
                     continue
