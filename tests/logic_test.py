@@ -213,10 +213,19 @@ def test_update_rejects_same_description_and_priority(from_json_instance):
     ])
 
     with pytest.raises(ValueError, match="different"):
-        from_json_instance.tasks_manager.update(same_description)
+        same_description.func(same_description)
 
     with pytest.raises(ValueError, match="different"):
-        from_json_instance.tasks_manager.update(same_priority)
+        same_priority.func(same_priority)
+
+def test_update_reject_non_supported_priorities(from_json_instance):
+    with pytest.raises(SystemExit):
+        from_json_instance.main_parser.parse_args([
+            "update",
+            "123",
+            "--priority",
+            "very-low",
+        ])
 
 def test_mark_task_status(from_json_instance):
     """The mark command should replace an existing task's status."""

@@ -70,7 +70,8 @@ class Parser():
         
         update_pars.add_argument(
             "-p", "--priority", metavar="new-priority",
-            type=str, help="Update priority.")
+            type=str, help="Update priority.", 
+            choices=SUPPORTED_PRIORITIES)
 
         update_pars.set_defaults(func=self.tasks_manager.update)
         
