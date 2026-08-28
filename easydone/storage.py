@@ -70,9 +70,9 @@ class JSONHandler():
         self.app_version = __version__
         self.json_file = Path(json_file).expanduser() if json_file else default_storage_path()
 
-    def _quarantine_path(self, file_path: Optional[Path] = None) -> Path:
+    def _quarantine_path(self) -> Path:
         """ Returns a quarantine path. """
-        file_path = file_path if file_path else self.json_file
+        file_path = self.json_file
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
         quarantine_path = file_path.with_name(
             f"{file_path.stem}.corrupted-{timestamp}{file_path.suffix}"
@@ -91,10 +91,12 @@ class JSONHandler():
         """
         try:
             file_path = self.json_file
-            backup_path = self._quarantine_path(file_path) if quarantine else self._backup_path()
+            backup_path = self._quarantine_path() if quarantine else self._backup_path()
             shutil.copy2(file_path, backup_path)
             return {"backup_path": backup_path, "backup_exception": None}
-        except (PermissionError, MemoryError) as exc:
+        except (PermissionError, MemoryError, FileNotFoundError) as exc:
+            # remove backup file if any error happened
+            backup_path.unlink(missing_ok=True) # type: ignore
             return {"backup_path": None, "backup_exception": exc}
 
     def load(self) -> LoadingResult:
