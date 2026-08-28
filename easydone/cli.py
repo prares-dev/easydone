@@ -94,8 +94,8 @@ class Parser():
         del_pars = sub_pars.add_parser("delete", help="Deletes a task.")
         
         del_pars.add_argument(
-            "id", type=str, 
-            help="ID of the task to be deleted.")
+            "ids", type=str, nargs='+', metavar='id',
+            help="IDs of the tasks to be deleted.")
         
         del_pars.add_argument(
             "-f", "--forced", action="store_true",
@@ -123,30 +123,33 @@ class Parser():
         
         list_pars.set_defaults(func=self.tasks_manager.list)
 
-    def start_parsing(self) -> None:
-        """ Parses the arguments passed. """
+    def start_parsing(self) -> bool:
+        """ Parses the arguments passed. Returns true if some command mutated state of any task. """
         args: Namespace
         try:
             args = self.main_parser.parse_args()
         except ValueError as exc:
             self.main_parser.error(str(exc))
-            return
+            return False
 
         if getattr(args, 'func', None) == self.tasks_manager.list:
             filtered_ids = args.func(args)
             print_table(self.tasks_manager.tasks, filtered_ids, no_dates=args.no_dates) 
-            return
+            return False
     
         if getattr(args, 'func', None) == self.tasks_manager.update:
             has_update_target = hasattr(args, 'description') or hasattr(args, 'priority')
             if not has_update_target:
                 self.main_parser.error("the update command requires at least one field change: --description or --priority")
 
-        try:
-            args.func(args)
-        except AttributeError:
+        if not hasattr(args, 'func'):
             # in case user invokes the program without arguments like:
             # >>> easydone
             self.main_parser.print_help()
-        except (ValueError, KeyError) as exc:
-            self.main_parser.error(str(exc))
+            return False
+        else:
+            try:
+                args.func(args)
+                return True
+            except (ValueError, KeyError, AttributeError, TypeError) as exc:
+                self.main_parser.error(str(exc))

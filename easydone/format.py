@@ -7,7 +7,9 @@ styled tables and colors; when Rich is not available it falls back to a
 plain-text table so the application remains dependency-light.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Any
+from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
+from . import __version__
 
 try:
     # Import the specific Rich helpers we need. If they are not available,
@@ -38,7 +40,6 @@ def _plain_print(tasks: Dict[str, dict],
         update = '[' + str(task.get('updated-at', 'unknown')) + ']' if not no_dates else "" 
         print(f"ID: {task_id} \"{desc}\" [{prior}] [{stat}] {create} {update}")
     print("====================================")
-
 
 def print_table(tasks: Dict[str, dict], 
                 ids: List[str], 
@@ -109,3 +110,55 @@ def print_table(tasks: Dict[str, dict],
             )
             
     console.print(table)
+
+def describe_load_result(result: LoadingResult) -> None:
+    msg = ""
+    if result.status is LoadStatus.MISSING:
+        msg = f"{result.file_path} does not exist. Starting with an empty task list."
+
+    if result.status is LoadStatus.CORRUPTED:
+        msg = f"Warning: {result.file_path} is unreadable or malformed."
+        if result.backup_path:
+            msg += f" A copy was saved to {result.backup_path} for review."
+        else:
+            msg += f" Unable to save corrupted file: ({result.backup_exception})"
+
+    lines = []
+    if result.schema_mismatch:
+        lines.append(
+            f"Found schema version {result.found_schema_version} "
+            f"(app expects {CURRENT_SCHEMA_VERSION})"
+        )
+    if result.app_mismatch:
+        lines.append(
+            f"written by EasyDone {result.found_app_version} "
+            f"(running Easydone {__version__})"
+            )
+
+    if lines:
+        msg = "Warning: " + " and ".join(lines) + "."
+
+    if msg:
+        style = 'yellow'
+    else:
+        style = 'green'
+        msg = "Tasks loaded successfully."
+    
+    if RICH_AVAILABLE:
+        console = Console()                     # type: ignore
+        console.print(Text(msg, style=style))   # type: ignore
+    else:
+        print(msg)
+
+def report_backup(backup_result: dict[str, Any]):
+    if backup_result['backup_path']:
+        text = "Backup succesfully done"
+        style = 'green'
+    else:
+        text = f"Warning: Couldn't backup ({backup_result['backup_exception']})"
+        style = 'yellow'
+    if RICH_AVAILABLE:
+        console = Console()     # type: ignore
+        console.print(Text(text=text, style=style)) # type: ignore
+    else:
+        print(text)

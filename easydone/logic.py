@@ -47,15 +47,17 @@ class TasksManager():
         self.tasks[args.id]["updated-at"] = str(datetime.now()).split(" ")[0]
     
     def delete(self, args: Namespace):
-        """ Deletes a task. """
-        if (id := args.id) not in self.tasks:
-            raise KeyError("Unexistent task")
-
-        if not args.forced:
-            if not yes_no(f"are you sure u want to delete the task {id}:\"{self.tasks[id]['description']}\" ?"):
-                return
+        """ Deletes a list of tasks. """
+        for id in args.ids:
+            if id not in self.tasks: 
+                raise KeyError(f"Unexistent task ({id})")
         
-        self.tasks.pop(id)
+        for id in set(args.ids):
+            if not args.forced:
+                if not yes_no(f"are you sure u want to delete the task {id}:\"{self.tasks[id]['description']}\" ?"):
+                    continue
+        
+            self.tasks.pop(id)
             
     def list(self, args: Namespace) -> list[str]:
         """ Shows all tasks. Filtered according to args.status and args.priority. """
