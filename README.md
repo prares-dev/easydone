@@ -2,33 +2,35 @@
 
 > A focused command-line task manager for turning a messy to-do list into a clear next action.
 
-EasyDone is a small, dependency-free Python CLI for creating, updating, completing, deleting, and filtering tasks directly from your terminal. Tasks are saved as readable JSON, so your data stays simple, portable, and easy to inspect.
+EasyDone is a lightweight Python CLI for creating, updating, completing, deleting, and filtering tasks directly from your terminal. Tasks are saved as readable JSON, and the storage layer now includes **automatic backups, corruption quarantine, and atomic writes** to keep your data safe.
 
 ## Why EasyDone?
 
-- Fast terminal-first workflow
-- Statuses for work in motion: `not-done`, `in-progress`, and `done`
-- Four priority levels: `low`, `normal`, `high`, and `urgent`
-- Filter tasks by status, priority, or both
-- Human-readable JSON storage with no database setup
-- Small codebase that is easy to learn from and extend
+- Fast terminal-first workflow  
+- Statuses for work in motion: `not-done`, `in-progress`, and `done`  
+- Four priority levels: `low`, `normal`, `high`, and `urgent`  
+- Filter tasks by status, priority, or both  
+- Human-readable JSON storage with no database setup  
+- **Bulletproof data handling**: atomic writes, automatic `.bak` backups, and quarantine of corrupted files  
+- Pretty terminal output with [Rich](https://github.com/Textualize/rich) (falls back to plain text if unavailable)
 
 ## Project Structure
 
 ```text
 easydone-task-tracker/
 ├── easydone/
-│   ├── __init__.py   # To acces package data like __version__.
-│   ├── __main__.py   # Application entry point.
-│   ├── cli.py        # Argument parser and commands.
-│   ├── logic.py      # Task-management operations.
-│   ├── storage.py    # JSON loading and saving.
-│   └── format.py     # Output formatting.
+│   ├── __init__.py   # Package metadata (version, etc.)
+│   ├── __main__.py   # Application entry point
+│   ├── cli.py        # Argument parser and command dispatch
+│   ├── logic.py      # Task-management operations
+│   ├── storage.py    # JSON loading/saving with backup & quarantine
+│   └── format.py     # Output formatting (Rich / plain)
 ├── tests/
-│   ├── logic_test.py
-│   ├── storage_test.py
-│   └── format_test.py
-├── LICENCE
+│   ├── test_cli.py
+│   ├── test_logic.py
+│   ├── test_storage.py
+│   └── test_format.py
+├── LICENSE
 ├── pyproject.toml    # Packaging and pytest configuration
 └── README.md
 ```
@@ -37,7 +39,7 @@ easydone-task-tracker/
 
 ### Requirements
 
-- Python 3.9 or newer
+- Python 3.9 or newer  
 - Windows PowerShell, macOS, or Linux terminal
 
 From the project root, create a virtual environment and install `EasyDone` in editable mode:
@@ -48,7 +50,7 @@ py -m venv .venv
 py -m pip install -e .
 ```
 
-On macOS or Linux, use:
+On macOS or Linux:
 
 ```bash
 python3 -m venv .venv
@@ -56,12 +58,13 @@ source .venv/bin/activate
 python -m pip install -e .
 ```
 
-Or install from PyPi
+Or install directly from PyPI:
+
 ```powershell
-py -m pip install 'easydone-task-tracker'
+py -m pip install easydone-task-tracker
 ```
 
-You can now run the application with:
+You can now run the application:
 
 ```text
 easydone
@@ -122,7 +125,14 @@ Options:
 
 ### `update`
 
-Change the description and/or priority of an existing task.
+Change the description and/or priority of an existing task.  
+The `--priority` option now validates against the four allowed values.
+
+```text
+easydone update TASK_ID [--description NEW_DESCRIPTION] [--priority NEW_PRIORITY]
+```
+
+Examples:
 
 ```text
 easydone update 123 --description "Read a novel"
@@ -134,21 +144,23 @@ easydone update 123 --priority high
 Change the status of an existing task.
 
 ```text
-easydone mark 123 in-progress
+easydone mark TASK_ID new-status
 ```
 
 ### `delete`
 
-Delete an existing task. EasyDone asks for confirmation unless `-f` or `--forced` is used.
+Delete one or more existing tasks. EasyDone asks for confirmation for each ID unless `-f` or `--forced` is used.
 
 ```text
-easydone delete TASK_ID
-easydone delete TASK_ID --forced
+easydone delete TASK_ID [TASK_ID ...]
+easydone delete TASK_ID [TASK_ID ...] --forced
 ```
+
+If you supply multiple IDs, all of them are validated before any deletion occurs. If any ID is invalid, the entire operation is aborted and no tasks are removed.
 
 ### `list`
 
-List all tasks or filter them by status and priority. Can ommit dates with `--no-dates` option.
+List all tasks or filter them by status and priority. You can omit dates with the `--no-dates` option.
 
 ```text
 easydone list [--status STATUS] [--priority PRIORITY] [--no-dates]
@@ -158,46 +170,40 @@ When both filters are supplied, a task must match both of them.
 
 ## Data Storage
 
-EasyDone stores task data in a user-scoped application directory so it does not depend on where the command is launched from.
+EasyDone stores task data in a user‑scoped application directory so it does not depend on where the command is launched from.
 
-On Windows:
+- **Windows**: `%APPDATA%\easydone-task-tracker\tasks.json`
+- **macOS**: `~/Library/Application Support/easydone-task-tracker/tasks.json`
+- **Linux**: `~/.local/share/easydone-task-tracker/tasks.json`
 
-```text
-%APPDATA%\easydone-task-tracker\tasks.json
-```
-
-On macOS:
-
-```text
-~/Library/Application Support/easydone-task-tracker/tasks.json
-```
-
-On Linux:
-
-```text
-~/.local/share/easydone-task-tracker/tasks.json
-```
-
-The app also writes a small metadata wrapper with the file schema version and the version of EasyDone that saved it. This keeps future upgrades safer and makes compatibility warnings explicit.
+The app writes a small metadata wrapper with the file schema version and the version of EasyDone that saved it. This makes future upgrades safer and compatibility warnings explicit.
 
 ```json
 {
     "schema_version": 1,
-    "app_version": "0.1.0",
-    "saved_at": "2026-08-24",
+    "app_version": "0.2.0",
+    "saved_at": "2026-08-28",
     "tasks": {
         "123": {
             "description": "Finish project report",
             "status": "in-progress",
             "priority": "high",
-            "created-at": "2026-08-24",
+            "created-at": "2026-08-28",
             "updated-at": null
         }
     }
 }
 ```
 
-If an older file is found, EasyDone still loads it for compatibility but prints a warning so the user can review the data before saving again.
+### Safety & Recovery
+
+EasyDone now protects your data in three ways:
+
+1. **Atomic writes**: Every save writes to a temporary file first, then swaps it atomically. A crash mid‑write never leaves a half‑written file.
+2. **Automatic backups**: Before every save, the current `tasks.json` is copied to `tasks.json.bak`. If something goes wrong, you can restore from this backup.
+3. **Corruption quarantine**: If EasyDone encounters an unreadable or malformed file on load, it copies that file to `tasks.corrupted-<timestamp>.json` instead of discarding it. You can inspect the quarantined file and recover data manually.
+
+If an older file is found (different schema or app version), EasyDone still loads it but prints a detailed warning so you can review the data before saving again.
 
 ## Development
 
@@ -218,6 +224,7 @@ Run a specific test module:
 ```text
 py -m pytest tests/logic_test.py
 py -m pytest tests/storage_test.py
+py -m pytest tests/format_test.py
 ```
 
 ## License
