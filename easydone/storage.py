@@ -21,7 +21,7 @@ def default_storage_path() -> Path:
         * Windows: %APPDATA% (e.g. C:/Users/<user>/AppData/Roaming)
         * macOS: ~/Library/Application Support
         * Linux/other: XDG_DATA_HOME or ~/.local/share as a fallback
-    - The final file is placed under <base>/easydone-task-tracker/tasks.json so the data is predictable and independent of the current working directory.
+    - The final file is placed under <base>/easydone/tasks.json so the data is predictable and independent of the current working directory.
     """
     # Allow an explicit override for testing or advanced usage. Expand ~ if present.
     custom_path = os.environ.get("EASYDONE_DATA_FILE")
@@ -44,7 +44,7 @@ def default_storage_path() -> Path:
         base_dir = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share"))
 
     # Keep the final data file path deterministic and easy to locate.
-    return base_dir / "easydone-task-tracker" / "tasks.json"
+    return base_dir / "easydone" / "tasks.json"
 
 class LoadStatus(Enum):
     OK = "ok"

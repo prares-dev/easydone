@@ -1,10 +1,10 @@
-# EasyDone Task Tracker
+# easydone - Task Tracker App
 
 > A focused command-line task manager for turning a messy to-do list into a clear next action.
 
-EasyDone is a lightweight Python CLI for creating, updating, completing, deleting, and filtering tasks directly from your terminal. Tasks are saved as readable JSON, and the storage layer now includes **automatic backups, corruption quarantine, and atomic writes** to keep your data safe.
+easydone is a lightweight Python CLI for creating, updating, completing, deleting, and filtering tasks directly from your terminal. Tasks are saved as readable JSON, and the storage layer now includes **automatic backups, corruption quarantine, and atomic writes** to keep your data safe.
 
-## Why EasyDone?
+## Why easydone?
 
 - Fast terminal-first workflow  
 - Statuses for work in motion: `not-done`, `in-progress`, and `done`  
@@ -17,7 +17,7 @@ EasyDone is a lightweight Python CLI for creating, updating, completing, deletin
 ## Project Structure
 
 ```text
-easydone-task-tracker/
+easydone/
 ├── easydone/
 │   ├── __init__.py   # Package metadata (version, etc.)
 │   ├── __main__.py   # Application entry point
@@ -42,7 +42,7 @@ easydone-task-tracker/
 - Python 3.9 or newer  
 - Windows PowerShell, macOS, or Linux terminal
 
-From the project root, create a virtual environment and install `EasyDone` in editable mode:
+From the project root, create a virtual environment and install `easydone` in editable mode:
 
 ```powershell
 py -m venv .venv
@@ -61,18 +61,18 @@ python -m pip install -e .
 Or install directly from PyPI:
 
 ```powershell
-py -m pip install easydone-task-tracker
+py -m pip install easydone
 ```
 
 You can now run the application:
 
-```text
+```shell
 easydone
 ```
 
 To see all available commands:
 
-```text
+```shell
 easydone --help
 ```
 
@@ -80,31 +80,31 @@ easydone --help
 
 Create a task:
 
-```text
+```shell
 easydone new "Read a book"
 ```
 
 Create a task with a status and priority:
 
-```text
+```shell
 easydone new "Finish project report" --status in-progress --priority high
 ```
 
 List everything:
 
-```text
+```shell
 easydone list
 ```
 
 Focus on urgent unfinished work:
 
-```text
+```shell
 easydone list --status not-done --priority urgent
 ```
 
 Mark a task as complete:
 
-```text
+```shell
 easydone mark 123 done
 ```
 
@@ -114,7 +114,7 @@ easydone mark 123 done
 
 Create a task. The description is required.
 
-```text
+```shell
 easydone new DESCRIPTION [--status STATUS] [--priority PRIORITY]
 ```
 
@@ -128,13 +128,13 @@ Options:
 Change the description and/or priority of an existing task.  
 The `--priority` option now validates against the four allowed values.
 
-```text
+```shell
 easydone update TASK_ID [--description NEW_DESCRIPTION] [--priority NEW_PRIORITY]
 ```
 
 Examples:
 
-```text
+```shell
 easydone update 123 --description "Read a novel"
 easydone update 123 --priority high
 ```
@@ -143,15 +143,15 @@ easydone update 123 --priority high
 
 Change the status of an existing task.
 
-```text
+```shell
 easydone mark TASK_ID new-status
 ```
 
 ### `delete`
 
-Delete one or more existing tasks. EasyDone asks for confirmation for each ID unless `-f` or `--forced` is used.
+Delete one or more existing tasks. easydone tasks for confirmation for each ID unless `-f` or `--forced` is used.
 
-```text
+```shell
 easydone delete TASK_ID [TASK_ID ...]
 easydone delete TASK_ID [TASK_ID ...] --forced
 ```
@@ -162,7 +162,7 @@ If you supply multiple IDs, all of them are validated before any deletion occurs
 
 List all tasks or filter them by status and priority. You can omit dates with the `--no-dates` option.
 
-```text
+```shell
 easydone list [--status STATUS] [--priority PRIORITY] [--no-dates]
 ```
 
@@ -170,13 +170,13 @@ When both filters are supplied, a task must match both of them.
 
 ## Data Storage
 
-EasyDone stores task data in a user‑scoped application directory so it does not depend on where the command is launched from.
+`easydone` stores task data in a user‑scoped application directory so it does not depend on where the command is launched from.
 
-- **Windows**: `%APPDATA%\easydone-task-tracker\tasks.json`
-- **macOS**: `~/Library/Application Support/easydone-task-tracker/tasks.json`
-- **Linux**: `~/.local/share/easydone-task-tracker/tasks.json`
+- **Windows**: `%APPDATA%\easydone\tasks.json`
+- **macOS**: `~/Library/Application Support/easydone/tasks.json`
+- **Linux**: `~/.local/share/easydone/tasks.json`
 
-The app writes a small metadata wrapper with the file schema version and the version of EasyDone that saved it. This makes future upgrades safer and compatibility warnings explicit.
+The app writes a small metadata wrapper with the file schema version and the version of easydone that saved it. This makes future upgrades safer and compatibility warnings explicit.
 
 ```json
 {
@@ -197,31 +197,31 @@ The app writes a small metadata wrapper with the file schema version and the ver
 
 ### Safety & Recovery
 
-EasyDone now protects your data in three ways:
+`easydone` now protects your data in three ways:
 
 1. **Atomic writes**: Every save writes to a temporary file first, then swaps it atomically. A crash mid‑write never leaves a half‑written file.
 2. **Automatic backups**: Before every save, the current `tasks.json` is copied to `tasks.json.bak`. If something goes wrong, you can restore from this backup.
-3. **Corruption quarantine**: If EasyDone encounters an unreadable or malformed file on load, it copies that file to `tasks.corrupted-<timestamp>.json` instead of discarding it. You can inspect the quarantined file and recover data manually.
+3. **Corruption quarantine**: If easydone encounters an unreadable or malformed file on load, it copies that file to `tasks.corrupted-<timestamp>.json` instead of discarding it. You can inspect the quarantined file and recover data manually.
 
-If an older file is found (different schema or app version), EasyDone still loads it but prints a detailed warning so you can review the data before saving again.
+If an older file is found (different schema or app version), `easydone` still loads it but prints a detailed warning so you can review the data before saving again.
 
 ## Development
 
 Install the development dependency group:
 
-```text
+```shell
 py -m pip install -e ".[dev]"
 ```
 
 Run the complete test suite:
 
-```text
+```shell
 py -m pytest
 ```
 
 Run a specific test module:
 
-```text
+```shell
 py -m pytest tests/logic_test.py
 py -m pytest tests/storage_test.py
 py -m pytest tests/format_test.py

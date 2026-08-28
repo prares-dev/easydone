@@ -3,19 +3,19 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "easydone-task-tracker"
+name = "easydone"
 version = "0.2.0"
-description = "A simple command-line task tracker."
+description = "A CLI app made with python for easy tasks management."
 readme = "README.md"
 requires-python = ">=3.9"
-authors = [{name = "Pedro A. Rosquete Ares", email = "rosquetearespedro06@gmail.com"}]
+authors = [{name = "Pedro Alberto Rosquete Ares", email = "rosquetearespedro06@gmail.com"}]
 license = { file = "LICENSE" }
 dependencies = ['rich>=13.0']
 
 [project.urls]
-Documentation = "https://github.com/prares-dev/easydone-task-tracker.git"
-Homepage = "https://github.com/prares-dev/easydone-task-tracker.git"
-Repository = "https://github.com/prares-dev/easydone-task-tracker.git"
+Documentation = "https://github.com/prares-dev/easydone.git"
+Homepage = "https://github.com/prares-dev/easydone.git"
+Repository = "https://github.com/prares-dev/easydone.git"
 
 [project.scripts]
 easydone = "easydone.__main__:main"
