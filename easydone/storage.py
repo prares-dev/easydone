@@ -153,9 +153,11 @@ class JSONHandler():
         # Keep the last known-good file before touching it.
         backup_path: Optional[Path] = None
         try:
-            backup_path = self.json_file.with_suffix(self.json_file.suffix + ".bak")
-            shutil.copy2(self.json_file, backup_path)
+            candidate = self.json_file.with_suffix(self.json_file.suffix + ".bak")
+            shutil.copy2(self.json_file, candidate)
+            backup_path = candidate # <-- Only set on succes
         except (PermissionError, MemoryError, FileNotFoundError):
+            backup_path = None
             pass
     
         # Write to a temp file in the SAME directory (matters: os.replace across
