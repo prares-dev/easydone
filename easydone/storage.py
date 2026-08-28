@@ -56,6 +56,7 @@ class LoadingResult(NamedTuple):
     status: LoadStatus = LoadStatus.OK
     file_path: Optional[Path] = None
     backup_path: Optional[Path] = None
+    backup_exception: Optional[Exception] = None
     found_schema_version: Optional[int] = None
     found_app_version: Optional[str] = None
     schema_mismatch: bool = False
@@ -69,26 +70,32 @@ class JSONHandler():
         self.app_version = __version__
         self.json_file = Path(json_file).expanduser() if json_file else default_storage_path()
 
-    def _backup(self, file_path: Optional[str | Path] = None) -> dict[str, Any]:
+    def _quarantine_path(self, file_path: Optional[Path] = None) -> Path:
+        """ Returns a quarantine path. """
+        file_path = file_path if file_path else self.json_file
+        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
+        quarantine_path = file_path.with_name(
+            f"{file_path.stem}.corrupted-{timestamp}{file_path.suffix}"
+        )
+        return quarantine_path
+    
+    def _backup_path(self) -> Path:
+        """ Returns a backup path. """
+        file_path = self.json_file
+        backup_path = file_path.with_suffix(file_path.suffix + '.bak')
+        return backup_path
+    
+    def _backup(self, quarantine=False) -> dict[str, Any]:
         """
         Backups a file, returns the backup path if succeed, else returns the exception raised.
         """
         try:
-            file_path = Path(file_path) if file_path else self.json_file
-            backup_path = file_path.with_suffix(file_path.suffix + '.bak')
+            file_path = self.json_file
+            backup_path = self._quarantine_path(file_path) if quarantine else self._backup_path()
             shutil.copy2(file_path, backup_path)
             return {"backup_path": backup_path, "backup_exception": None}
         except (PermissionError, MemoryError) as exc:
             return {"backup_path": None, "backup_exception": exc}
-    
-    def _quarantine_corrupted_file(self) -> Path:
-        """Preserve a corrupted file for inspection instead of silently discarding it."""
-        timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
-        quarantine_path = self.json_file.with_name(
-            f"{self.json_file.stem}.corrupted-{timestamp}{self.json_file.suffix}"
-        )
-        shutil.copy2(self.json_file, quarantine_path)
-        return quarantine_path
 
     def load(self) -> LoadingResult:
         """Load tasks from the JSON file."""
@@ -101,18 +108,18 @@ class JSONHandler():
                 tasks={}, status=LoadStatus.MISSING, file_path=self.json_file
                 )
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
-            backup_path = self._quarantine_corrupted_file()
+            backup_result = self._backup(quarantine=True)
             return LoadingResult(
                 tasks={}, status=LoadStatus.CORRUPTED, 
-                file_path=self.json_file, backup_path=backup_path
+                file_path=self.json_file, **backup_result
                 )
 
         # unexpected format of content loaded
         if not isinstance(payload, dict):
-            backup_path = self._quarantine_corrupted_file()
+            backup_result = self._backup(quarantine=True)
             return LoadingResult(
                 tasks={}, status=LoadStatus.CORRUPTED, 
-                file_path=self.json_file, backup_path=backup_path
+                file_path=self.json_file, **backup_result
                 )
 
         # try to get metadata from dict loaded
@@ -122,10 +129,10 @@ class JSONHandler():
 
         # unexpected format of tasks
         if not isinstance(tasks, dict):
-            backup_path = self._quarantine_corrupted_file()
+            backup_result = self._backup(quarantine=True)
             return LoadingResult(
                 tasks={}, status=LoadStatus.CORRUPTED, 
-                file_path=self.json_file, backup_path=backup_path
+                file_path=self.json_file, **backup_result
                 )
 
         return LoadingResult(
@@ -136,7 +143,7 @@ class JSONHandler():
             app_mismatch = app_version != self.app_version
             )
 
-    def save(self, tasks: dict[str, dict]) -> bool:
+    def save(self, tasks: dict[str, dict]) -> dict[str, Any]:
         """Persist tasks with metadata so upgrades can be reviewed safely. Return True or False wether backup was done or not."""
         if not isinstance(tasks, dict):
             raise TypeError("tasks must be a dictionary of task records")
@@ -151,14 +158,7 @@ class JSONHandler():
         }
 
         # Keep the last known-good file before touching it.
-        backup_path: Optional[Path] = None
-        try:
-            candidate = self.json_file.with_suffix(self.json_file.suffix + ".bak")
-            shutil.copy2(self.json_file, candidate)
-            backup_path = candidate # <-- Only set on succes
-        except (PermissionError, MemoryError, FileNotFoundError):
-            backup_path = None
-            pass
+        backup_result = self._backup()
     
         # Write to a temp file in the SAME directory (matters: os.replace across
         # filesystems isn't atomic), then swap it in as one step.
@@ -173,4 +173,4 @@ class JSONHandler():
             os.unlink(tmp_path)  # don't leave stray .tmp files on failure
             raise
         
-        return isinstance(backup_path, Path)
+        return backup_result
