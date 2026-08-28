@@ -18,8 +18,8 @@ def main() -> None:
     
     # save tasks before exiting only if mutated status
     if mutated:
-        backup_done = handler.save(manager.tasks)
-        report_backup(backup_done)
+        backup_result = handler.save(manager.tasks)
+        report_backup(backup_result)
 
 if __name__ == "__main__":
     main()
