@@ -8,7 +8,7 @@ version = "0.2.0"
 description = "A simple command-line task tracker."
 readme = "README.md"
 requires-python = ">=3.10"
-authors = [{name = "Pedro A. Rosquete Ares", email = "rosquetearespedro06@gmail.com"}]
+authors = [{name = "Pedro Alberto Rosquete Ares", email = "rosquetearespedro06@gmail.com"}]
 license = { file = "LICENSE" }
 dependencies = ['rich>=13.0']
 
