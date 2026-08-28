@@ -7,7 +7,7 @@ styled tables and colors; when Rich is not available it falls back to a
 plain-text table so the application remains dependency-light.
 """
 
-from typing import Dict, List
+from typing import Dict, List, Any
 from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
 from . import __version__
 
@@ -120,6 +120,8 @@ def describe_load_result(result: LoadingResult) -> None:
         msg = f"Warning: {result.file_path} is unreadable or malformed."
         if result.backup_path:
             msg += f" A copy was saved to {result.backup_path} for review."
+        else:
+            msg += f" Unable to save corrupted file: ({result.backup_exception})"
 
     lines = []
     if result.schema_mismatch:
@@ -148,9 +150,13 @@ def describe_load_result(result: LoadingResult) -> None:
     else:
         print(msg)
 
-def report_backup(backup_done: bool):
-    text = "Backup succesfully done" if backup_done else "Warning: Couldn't backup"
-    style = 'green' if backup_done else 'yellow'
+def report_backup(backup_result: dict[str, Any]):
+    if backup_result['backup_path']:
+        text = "Backup succesfully done"
+        style = 'green'
+    else:
+        text = f"Warning: Couldn't backup ({backup_result['backup_exception']})"
+        style = 'yellow'
     if RICH_AVAILABLE:
         console = Console()     # type: ignore
         console.print(Text(text=text, style=style)) # type: ignore
