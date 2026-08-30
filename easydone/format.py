@@ -27,19 +27,30 @@ def _plain_print(tasks: Dict[str, dict],
                 no_dates: bool = False
                 ) -> None:
     """Plain-text fallback used when Rich is unavailable."""
-    print("====================================")
-    print("EasyDone: Task-Tracker")
-    print("====================================")
+    
+    if not tasks:
+        print("No tasks to show.")
+        return
+    
+    print("│──────────────────────")
+    print("│easydone: task tracker")
+    print("└──────────────────────")
+    print("|")
     for task_id in ids:
         # Use .get() so older or partially missing task dictionaries still print.
         task = tasks[task_id]
         desc = task.get('description', 'unknown')
         prior = task.get('priority', 'unknown')
         stat = task.get('status', 'unknown')
-        create = '[' + str(task.get('created-at', 'unknown')) + ']' if not no_dates else "" 
-        update = '[' + str(task.get('updated-at', 'unknown')) + ']' if not no_dates else "" 
-        print(f"ID: {task_id} \"{desc}\" [{prior}] [{stat}] {create} {update}")
-    print("====================================")
+        create = str(task.get('created-at', 'unknown')) 
+        update = str(task.get('updated-at', 'unknown'))
+        
+        print(f"├── ID: {task_id} ... Description: {desc}")
+        print(f"│    ├── Priority: {prior}")
+        print(f"│    {"├──" if not no_dates else "└──"} Status: {stat}")
+        if not no_dates:
+            print(f"│    ├── Created at: {create}")
+            print(f"│    └── Updated at: {update}")
 
 def print_table(tasks: Dict[str, dict], 
                 ids: List[str], 
