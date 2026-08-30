@@ -143,6 +143,9 @@ class Parser():
             if not has_update_target:
                 self.main_parser.error("the update command requires at least one field change: --description or --priority")
 
+        if getattr(args, 'func', None) == self.tasks_manager.delete:
+            return args.func(args)
+        
         if not hasattr(args, 'func'):
             # in case user invokes the program without arguments like:
             # >>> easydone

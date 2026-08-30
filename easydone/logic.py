@@ -1,6 +1,7 @@
 from argparse import Namespace
 from random import randint
 from datetime import datetime
+from .format import confirm_deletion
 
 class TasksManager():
     """ A class to manage all tasks logic. """
@@ -46,18 +47,21 @@ class TasksManager():
         self.tasks[args.id]["status"] = args.new_status
         self.tasks[args.id]["updated-at"] = str(datetime.now()).split(" ")[0]
     
-    def delete(self, args: Namespace):
+    def delete(self, args: Namespace) -> bool:
         """ Deletes a list of tasks. """
         for id in args.ids:
             if id not in self.tasks: 
                 raise KeyError(f"Unexistent task ({id})")
         
+        mutated = False
         for id in set(args.ids):
             if not args.forced:
-                if not yes_no(f"are you sure u want to delete the task {id}:\"{self.tasks[id]['description']}\" ?"):
+                if not confirm_deletion(id, self.tasks[id]['description']): 
                     continue
-        
+    
             self.tasks.pop(id)
+            mutated = True
+        return mutated
             
     def list(self, args: Namespace) -> list[str]:
         """ Shows all tasks. Filtered according to args.status and args.priority. """
@@ -81,14 +85,3 @@ class TasksManager():
             for _ in range(self.ID_SIZE):
                 id += str(randint(0, 9))
         return id
-
-def yes_no(prompt: str) -> bool:
-    """Asks the user a yes/no question and returns True for yes and False for no."""
-    while True:
-        response = input(prompt + " (y/n): ").strip().lower()
-        if response in ['y', 'yes']:
-            return True
-        elif response in ['n', 'no']:
-            return False
-        else:
-            print("Invalid input. Please enter 'y' or 'n'.")

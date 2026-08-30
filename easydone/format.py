@@ -32,10 +32,8 @@ def _plain_print(tasks: Dict[str, dict],
         print("No tasks to show.")
         return
     
-    print("│──────────────────────")
-    print("│easydone: task tracker")
-    print("└──────────────────────")
-    print("|")
+    print("\n│easydone: task tracker")
+    print("├──────────────────────")
     for task_id in ids:
         # Use .get() so older or partially missing task dictionaries still print.
         task = tasks[task_id]
@@ -45,12 +43,12 @@ def _plain_print(tasks: Dict[str, dict],
         create = str(task.get('created-at', 'unknown')) 
         update = str(task.get('updated-at', 'unknown'))
         
-        print(f"├── ID: {task_id} ... Description: {desc}")
+        print(f"├── ID: {task_id} ... \"{desc}\"")
         print(f"│    ├── Priority: {prior}")
         print(f"│    {"├──" if not no_dates else "└──"} Status: {stat}")
         if not no_dates:
-            print(f"│    ├── Created at: {create}")
-            print(f"│    └── Updated at: {update}")
+            print(f"│    ├── Created at: {create if create else '-'}")
+            print(f"│    └── Updated at: {update if update else '-'}")
 
 def print_table(tasks: Dict[str, dict], 
                 ids: List[str], 
@@ -177,14 +175,15 @@ def report_backup(backup_result: dict[str, Any]):
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 # DOESN't FALLBACK TO PLAIN TEXT
 # XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-def confirm_deletion(prompt: str, max_attempts: int = 3) -> bool:
+def confirm_deletion(id: int, description: str, max_attempts: int = 3) -> bool:
     """Asks the user a yes/no question and returns True for yes and False for no."""
-    console = Console()                                                     # type: ignore
-    msg = Text(prompt + ' (') + Text('y', 'yellow') + Text('/n): ')         # type: ignore
+    console = Console()                        # type: ignore
+    prompt = Text("Are you sure about deleting task ") + Text(f"{id}: \"{description}\"", 'yellow') + Text(" ?")       #type: ignore
+    msg = prompt + Text(' (') + Text('y', 'yellow') + Text('/n): ')         # type: ignore
     
     attempts = 0
     while attempts < max_attempts:
-        console.print(msg, end="")
+        console.print(msg)
         
         try:
             response = input().strip().lower()
@@ -202,7 +201,7 @@ def confirm_deletion(prompt: str, max_attempts: int = 3) -> bool:
             err2 = Text("Please enter '") + Text('y', 'yellow') + Text("' or 'n'.")     # type: ignore
             console.print(err1, err2)
             attempts +=1
-            
+
     msg = Text(f"Unable to get valid user response after {max_attempts} attempts. Abborting deletion attempt...", 'yellow') # type: ignore
     console.print(msg)
-    raise RuntimeError()
+    return False

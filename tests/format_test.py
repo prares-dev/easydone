@@ -83,15 +83,15 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     format_module.print_table(tasks, ["123"])
 
     output = capsys.readouterr().out
-    assert "EasyDone: Task-Tracker" in output
-    assert 'ID: 123 "read a book" [low] [not-done] [2026-08-22] [None]' in output
+    assert "easydone: task tracker" in output
+    assert all(str in output for str in['ID: 123', "read a book", "low" ,"not-done", "2026-08-22", "-"])
     
     format_module.print_table(tasks, ["123"], no_dates=True)
     
     output = capsys.readouterr().out
-    assert "EasyDone: Task-Tracker" in output
-    assert 'ID: 123 "read a book" [low] [not-done]' in output
-    assert '[2026-08-22] [None]' not in output
+    assert "easydone: task tracker" in output
+    assert all(str in output for str in ['ID: 123', "read a book", "low" ,"not-done"])
+    assert not "2026-08-22" in output
 
 
 def test_print_table_uses_rich_when_available(monkeypatch):

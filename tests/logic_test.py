@@ -258,7 +258,7 @@ def test_delete_existing_task(from_json_instance):
 
 def test_delete_task_after_confirmation(from_json_instance, monkeypatch):
     """A yes response to the delete prompt should remove the task."""
-    monkeypatch.setattr("builtins.input", lambda _: "y")
+    monkeypatch.setattr("builtins.input", lambda : "y")
 
     args = from_json_instance.main_parser.parse_args([
         "delete",
@@ -271,7 +271,7 @@ def test_delete_task_after_confirmation(from_json_instance, monkeypatch):
 
 def test_keep_task_when_deletion_is_rejected(from_json_instance, monkeypatch):
     """A no response to the delete prompt should keep the task."""
-    monkeypatch.setattr("builtins.input", lambda _: "n")
+    monkeypatch.setattr("builtins.input", lambda : "n")
 
     args = from_json_instance.main_parser.parse_args(["delete", "123"])
     args.func(args)
@@ -295,7 +295,7 @@ def test_delete_multiple_tasks_with_confirmation(from_json_instance, monkeypatch
     """When deleting multiple IDs, each ID should prompt; answering 'y' for all deletes them."""
     # Simulate 'y' for both prompts
     inputs = iter(["y", "y"])
-    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+    monkeypatch.setattr("builtins.input", lambda : next(inputs))
 
     tasks = from_json_instance.tasks_manager.tasks
     args = from_json_instance.main_parser.parse_args(["delete", "123", "456"])
@@ -311,7 +311,7 @@ def test_delete_multiple_tasks_one_cancelled_keeps_others(from_json_instance, mo
     target IDs is removed (the one confirmed) and the other remains.
     """
     inputs = iter(["y", "n"])
-    monkeypatch.setattr("builtins.input", lambda _: next(inputs))
+    monkeypatch.setattr("builtins.input", lambda : next(inputs))
     tasks = from_json_instance.tasks_manager.tasks
     args = from_json_instance.main_parser.parse_args(["delete", "123", "456"])
     args.func(args)
