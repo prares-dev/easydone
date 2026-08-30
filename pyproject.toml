@@ -10,7 +10,11 @@ readme = "README.md"
 requires-python = ">=3.9"
 authors = [{name = "Pedro Alberto Rosquete Ares", email = "rosquetearespedro06@gmail.com"}]
 license = { file = "LICENSE" }
-dependencies = ['rich>=13.0']
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0",]
+pretty = ["rich>=13.0"]
 
 [project.urls]
 Documentation = "https://github.com/prares-dev/easydone.git"
@@ -19,9 +23,6 @@ Repository = "https://github.com/prares-dev/easydone.git"
 
 [project.scripts]
 easydone = "easydone.__main__:main"
-
-[project.optional-dependencies]
-dev = ["pytest>=8.0",]
 
 [tool.setuptools.packages.find]
 include = ["easydone*"]
