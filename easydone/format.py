@@ -174,6 +174,9 @@ def report_backup(backup_result: dict[str, Any]):
     else:
         print(text)
 
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+# DOESN't FALLBACK TO PLAIN TEXT
+# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 def confirm_deletion(prompt: str, max_attempts: int = 3) -> bool:
     """Asks the user a yes/no question and returns True for yes and False for no."""
     console = Console()                                                     # type: ignore
