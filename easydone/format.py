@@ -162,3 +162,33 @@ def report_backup(backup_result: dict[str, Any]):
         console.print(Text(text=text, style=style)) # type: ignore
     else:
         print(text)
+
+def confirm_deletion(prompt: str, max_attempts: int = 3) -> bool:
+    """Asks the user a yes/no question and returns True for yes and False for no."""
+    console = Console()                                                     # type: ignore
+    msg = Text(prompt + ' (') + Text('y', 'yellow') + Text('/n): ')         # type: ignore
+    
+    attempts = 0
+    while attempts < max_attempts:
+        console.print(msg, end="")
+        
+        try:
+            response = input().strip().lower()
+        except KeyboardInterrupt:
+            msg = Text("aborting deletion attempt...", "yellow")            # type: ignore
+            console.print(msg)
+            raise
+            
+        if response in ['y', 'yes']:
+            return True
+        elif response in ['n', 'no']:
+            return False
+        else:
+            err1 = Text("Invalid input.", 'red')                            # type: ignore
+            err2 = Text("Please enter '") + Text('y', 'yellow') + Text("' or 'n'.")     # type: ignore
+            console.print(err1, err2)
+            attempts +=1
+            
+    msg = Text(f"Unable to get valid user response after {max_attempts} attempts. Abborting deletion attempt...", 'yellow') # type: ignore
+    console.print(msg)
+    raise RuntimeError()
