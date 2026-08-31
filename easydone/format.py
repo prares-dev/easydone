@@ -1,41 +1,105 @@
 """Output formatting helpers.
 
-This module centralizes all user-facing presentation logic so the CLI
-parsing and task-management logic remain separate. The primary function
-`print_table` prints a table of tasks. It attempts to use Rich for nicely
-styled tables and colors; when Rich is not available it falls back to a
-plain-text table so the application remains dependency-light.
+This module centralizes all user-facing presentation logic.
+It uses Rich when available, otherwise falls back to plain text.
 """
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional, TypedDict
+
 from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
 from . import __version__
 
+
+# ----------------------------------------------------------------------------
+# Types
+# ----------------------------------------------------------------------------
+
+class MyText(TypedDict, total=False):
+    """A piece of text with optional style information.
+
+    Example:
+        {"text": "Warning: ", "style": "yellow"}
+        {"text": "file not found"}
+    """
+    text: str
+    style: Optional[str]
+
+
+# ----------------------------------------------------------------------------
+# Rich availability
+# ----------------------------------------------------------------------------
+
 try:
-    # Import the specific Rich helpers we need. If they are not available,
-    # the import will raise and the code will fall back to plain text.
     from rich.console import Console
     from rich.table import Table
     from rich.text import Text
     RICH_AVAILABLE = True
-except Exception:
+except ImportError:
     RICH_AVAILABLE = False
 
+_console = Console() if RICH_AVAILABLE else None # type: ignore
 
-def _plain_print(tasks: Dict[str, dict], 
-                ids: List[str], 
-                no_dates: bool = False
-                ) -> None:
-    """Plain-text fallback used when Rich is unavailable."""
-    
-    if not tasks:
+
+# ----------------------------------------------------------------------------
+# Core rendering helpers
+# ----------------------------------------------------------------------------
+
+def _print(text: str, style: Optional[str] = None) -> None:
+    """Print a single piece of text with optional styling if Rich is available.
+
+    This is for simple messages that are just one string with one style.
+
+    Example:
+        _print("Tasks loaded successfully.", style="green")
+    """
+    if RICH_AVAILABLE:
+        _console.print(Text(text, style=style))  # type: ignore
+    else:
+        print(text)
+
+
+def _render_parts(parts: List[MyText]) -> None:
+    """Render multiple styled text parts.
+
+    If Rich is available, each part is rendered with its style.
+    If not, all text is concatenated and printed plainly.
+
+    This is useful for complex messages with multiple styled segments.
+
+    Example:
+        parts = [
+            {"text": "Warning: ", "style": "yellow"},
+            {"text": "Task not found", "style": "bold red"},
+        ]
+        _render_parts(parts)
+    """
+    if RICH_AVAILABLE:
+        text_obj = Text() # type: ignore
+        for part in parts:
+            text_obj.append(part.get("text", ""), style=part.get("style"))
+        _console.print(text_obj)  # type: ignore
+    else:
+        print("".join(part.get("text", "") for part in parts))
+
+
+def _print_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool = False) -> None:
+    """Render a task table with Rich or plain text fallback."""
+    if not ids:
         print("No tasks to show.")
         return
-    
-    print("\n│easydone: task tracker")
-    print("├──────────────────────")
+
+    if not RICH_AVAILABLE:
+        _plain_table(tasks, ids, no_dates)
+    else:
+        _rich_table(tasks, ids, no_dates)
+
+
+def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
+    """Plain text table renderer."""
+    print("┌────────────────────────┐")
+    print("│ EASYDONE: Task Tracker |")
+    print("└────────────────────────┘")
     for task_id in ids:
-        # Use .get() so older or partially missing task dictionaries still print.
         task = tasks[task_id]
         desc = task.get('description', 'unknown')
         prior = task.get('priority', 'unknown')
@@ -43,34 +107,17 @@ def _plain_print(tasks: Dict[str, dict],
         create = task.get('created-at', 'unknown')
         update = task.get('updated-at')
         update = '-' if update is None else update
-        
-        print(f"├── ID: {task_id} ... \"{desc}\"")
-        print(f"│    ├── Priority: {prior}")
-        print(f"│    {"├──" if not no_dates else "└──"} Status: {stat}")
+
+        print(f"┌─ ID: {task_id} ... \"{desc}\"")
+        print(f"│  ├── Priority: {prior}")
+        print(f"│  {'├──' if not no_dates else '└──'} Status: {stat}")
         if not no_dates:
-            print(f"│    ├── Created at: {create}")
-            print(f"│    └── Updated at: {update}")
+            print(f"│  ├── Created at: {create}")
+            print(f"│  └── Updated at: {update}")
 
-def print_table(tasks: Dict[str, dict], 
-                ids: List[str], 
-                no_dates: bool = False
-                ) -> None:
-    """Print a tasks table using Rich when available, otherwise use plain text.
 
-    Columns: ID, Description, Priority, Status, Created, Updated.
-    The status and priority values are highlighted in color when Rich is present.
-    """
-    if not ids:
-        print("No tasks to show.")
-        return
-
-    if not RICH_AVAILABLE:
-        _plain_print(tasks, ids, no_dates=no_dates)
-        return
-
-    # Build a Rich table in the presentation layer. This keeps formatting and
-    # colors separated from task logic and CLI argument parsing.
-    console = Console() # type: ignore
+def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
+    """Rich table renderer."""
     table = Table(show_header=True, header_style="bold magenta") # type: ignore
     table.add_column("ID", style="dim", no_wrap=True)
     table.add_column("Description")
@@ -97,31 +144,41 @@ def print_table(tasks: Dict[str, dict],
         desc = task.get('description', 'unknown')
         prior = task.get('priority', 'unknown')
         stat = task.get('status', 'unknown')
-        create: str
-        update: str
+
         if not no_dates:
             create = task.get('created-at', 'unknown')
             update = task.get('updated-at', 'unknown')
             update = '-' if update is None else update
             table.add_row(
                 task_id,
-                Text(desc, overflow='ellipsis'),    # type: ignore
-                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
-                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+                Text(desc, overflow='ellipsis'), # type: ignore
+                Text(prior, style=priority_styles.get(prior, "")), # type: ignore
+                Text(stat, style=status_styles.get(stat, "")), # type: ignore
                 create,
                 update,
             )
         else:
             table.add_row(
                 task_id,
-                Text(desc, overflow='ellipsis'),    # type: ignore
-                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
-                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+                Text(desc, overflow='ellipsis'), # type: ignore
+                Text(prior, style=priority_styles.get(prior, "")), # type: ignore
+                Text(stat, style=status_styles.get(stat, "")), # type: ignore
             )
-            
-    console.print(table)
+
+    _console.print(table)  # type: ignore
+
+
+# ----------------------------------------------------------------------------
+# Public API
+# ----------------------------------------------------------------------------
+
+def print_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool = False) -> None:
+    """Print a task table."""
+    _print_table(tasks, ids, no_dates)
+
 
 def describe_load_result(result: LoadingResult) -> None:
+    """Describe the result of loading a tasks file."""
     msg = ""
     if result.status is LoadStatus.MISSING:
         msg = f"{result.file_path} does not exist. Starting with an empty task list."
@@ -143,62 +200,45 @@ def describe_load_result(result: LoadingResult) -> None:
         lines.append(
             f"written by EasyDone {result.found_app_version} "
             f"(running Easydone {__version__})"
-            )
+        )
 
     if lines:
         msg = "Warning: " + " and ".join(lines) + "."
 
     if msg:
-        style = 'yellow'
+        _print(msg, style='yellow')
     else:
-        style = 'green'
-        msg = "Tasks loaded successfully."
-    
-    if RICH_AVAILABLE:
-        console = Console()                     # type: ignore
-        console.print(Text(msg, style=style))   # type: ignore
-    else:
-        print(msg)
+        _print("Tasks loaded successfully.", style='green')
 
-def report_backup(backup_result: dict[str, Any]):
+
+def report_backup(backup_result: dict[str, Any]) -> None:
+    """Report whether a backup succeeded or failed."""
     if backup_result['backup_path']:
-        text = "Backup succesfully done"
-        style = 'green'
+        _print("Backup succesfully done", style='green')
     else:
-        text = f"Warning: Couldn't backup ({backup_result['backup_exception']})"
-        style = 'yellow'
-    if RICH_AVAILABLE:
-        console = Console()     # type: ignore
-        console.print(Text(text=text, style=style)) # type: ignore
-    else:
-        print(text)
+        _print(f"Warning: Couldn't backup ({backup_result['backup_exception']})", style='yellow')
 
-def confirm_deletion(id: int, description: str, max_attempts: int = 3) -> bool:
-    """Asks the user a yes/no question and returns True for yes and False for no."""
-    plain_prompt = f'Are you sure about deleting task {id}: "{description}" ? (y/n): '
 
-    if RICH_AVAILABLE:
-        console = Console()                                                             # type: ignore
-        rich_prompt = (
-            Text("Are you sure about deleting task ")                                   # type: ignore
-            + Text(f"{id}: \"{description}\"", 'yellow')                                # type: ignore
-            + Text(' (') + Text('y', 'yellow') + Text('/n): ')                          # type: ignore
-        )
-
+def confirm_deletion(task_id: str, description: str, max_attempts: int = 3) -> bool:
+    """Ask the user for confirmation with styled prompt using MyText parts."""
     attempts = 0
+
+    # Build the prompt once – as a list of MyText parts
+    prompt_parts: List[MyText] = [
+        {"text": "Are you sure about deleting task "},
+        {"text": f"{task_id}: \"{description}\"", "style": "yellow"},
+        {"text": " ("},
+        {"text": "y", "style": "yellow"},
+        {"text": "/n): "},
+    ]
+
     while attempts < max_attempts:
-        if RICH_AVAILABLE:
-            console.print(rich_prompt)                                                  # type: ignore
-        else:
-            print(plain_prompt)
+        _render_parts(prompt_parts)
 
         try:
             response = input().strip().lower()
         except KeyboardInterrupt:
-            if RICH_AVAILABLE:
-                console.print(Text("aborting deletion attempt...", "yellow"))           # type: ignore
-            else:
-                print("aborting deletion attempt...")
+            _render_parts([{"text": "aborting deletion attempt...", "style": "yellow"}])
             raise
 
         if response in ['y', 'yes']:
@@ -206,17 +246,15 @@ def confirm_deletion(id: int, description: str, max_attempts: int = 3) -> bool:
         elif response in ['n', 'no']:
             return False
         else:
-            if RICH_AVAILABLE:
-                err1 = Text("Invalid input.", 'red')                                    # type: ignore
-                err2 = Text("Please enter '") + Text('y', 'yellow') + Text("' or 'n'.") # type: ignore
-                console.print(err1, err2)                                               # type: ignore
-            else:
-                print("Invalid input. Please enter 'y' or 'n'.")
+            _render_parts([
+                {"text": "Invalid input. ", "style": "red"},
+                {"text": "Please enter '"},
+                {"text": "y", "style": "yellow"},
+                {"text": "' or 'n'."},
+            ])
             attempts += 1
 
-    msg = f"Unable to get valid user response after {max_attempts} attempts. Aborting deletion attempt..."
-    if RICH_AVAILABLE:
-        console.print(Text(msg, 'yellow'))                                              # type: ignore
-    else:
-        print(msg)
+    _render_parts([
+        {"text": f"Unable to get valid user response after {max_attempts} attempts. Aborting deletion attempt...", "style": "yellow"}
+    ])
     return False
