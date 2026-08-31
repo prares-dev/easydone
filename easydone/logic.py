@@ -1,7 +1,6 @@
 from argparse import Namespace
 from random import randint
 from datetime import datetime
-from .format import confirm_deletion
 
 class TasksManager():
     """ A class to manage all tasks logic. """
@@ -47,21 +46,16 @@ class TasksManager():
         self.tasks[args.id]["status"] = args.new_status
         self.tasks[args.id]["updated-at"] = str(datetime.now()).split(" ")[0]
     
-    def delete(self, args: Namespace) -> bool:
-        """ Deletes a list of tasks. """
-        for id in args.ids:
-            if id not in self.tasks: 
+    def delete(self, *ids: str):
+        """Deletes the given ids and returns the ones actually removed."""
+        for id in ids:
+            if id not in self.tasks:
                 raise KeyError(f"Unexistent task ({id})")
-        
-        mutated = False
-        for id in set(args.ids):
-            if not args.forced:
-                if not confirm_deletion(id, self.tasks[id]['description']): 
-                    continue
-    
+        removed = []
+        for id in ids:
             self.tasks.pop(id)
-            mutated = True
-        return mutated
+            removed.append(id)
+        return removed
             
     def list(self, args: Namespace) -> list[str]:
         """ Shows all tasks. Filtered according to args.status and args.priority. """

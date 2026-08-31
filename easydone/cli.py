@@ -1,6 +1,6 @@
 from argparse import ArgumentParser, Namespace, SUPPRESS
 from .logic import TasksManager
-from .format import print_table
+from .format import print_table, confirm_deletion
 from . import __version__
 
 SUPPORTED_STATUS = ["not-done", "done", "in-progress"]
@@ -102,7 +102,7 @@ class Parser():
             "-f", "--forced", action="store_true",
             help="If not used, the user will be prompted for confirmation.")
         
-        del_pars.set_defaults(func=self.tasks_manager.delete)
+        del_pars.set_defaults(func=self._handle_delete)
         
         # 'LIST' command
         # ====================
@@ -142,9 +142,6 @@ class Parser():
             has_update_target = hasattr(args, 'description') or hasattr(args, 'priority')
             if not has_update_target:
                 self.main_parser.error("the update command requires at least one field change: --description or --priority")
-
-        if getattr(args, 'func', None) == self.tasks_manager.delete:
-            return args.func(args)
         
         if not hasattr(args, 'func'):
             # in case user invokes the program without arguments like:
@@ -153,7 +150,28 @@ class Parser():
             return False
         else:
             try:
-                args.func(args)
-                return True
-            except (ValueError, KeyError, AttributeError, TypeError) as exc:
+                returned = args.func(args)
+                return returned if returned is not None else True
+            except (KeyError, ValueError) as exc:
                 self.main_parser.error(str(exc))
+                
+    def _handle_delete(self, args: Namespace) -> bool:
+        unique_ids = list(dict.fromkeys(args.ids))  # dedupe, preserve order
+
+        # validate before prompting — never ask the user to confirm a phantom task
+        for id in unique_ids:
+            if id not in self.tasks_manager.tasks:
+                raise KeyError(f"Unexistent task ({id})")
+
+        removed = []
+        if args.forced:
+            removed = self.tasks_manager.delete(*unique_ids)
+        else:
+            for id in unique_ids:
+                try:
+                    if confirm_deletion(id, self.tasks_manager.tasks[id]['description']):
+                        removed.append(self.tasks_manager.delete(id)[0])
+                except KeyboardInterrupt:
+                    return bool(removed)
+        
+        return bool(removed)

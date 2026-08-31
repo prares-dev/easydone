@@ -40,15 +40,16 @@ def _plain_print(tasks: Dict[str, dict],
         desc = task.get('description', 'unknown')
         prior = task.get('priority', 'unknown')
         stat = task.get('status', 'unknown')
-        create = str(task.get('created-at', 'unknown')) 
-        update = str(task.get('updated-at', 'unknown'))
+        create = task.get('created-at', 'unknown')
+        update = task.get('updated-at')
+        update = '-' if update is None else update
         
         print(f"├── ID: {task_id} ... \"{desc}\"")
         print(f"│    ├── Priority: {prior}")
         print(f"│    {"├──" if not no_dates else "└──"} Status: {stat}")
         if not no_dates:
-            print(f"│    ├── Created at: {create if create else '-'}")
-            print(f"│    └── Updated at: {update if update else '-'}")
+            print(f"│    ├── Created at: {create}")
+            print(f"│    └── Updated at: {update}")
 
 def print_table(tasks: Dict[str, dict], 
                 ids: List[str], 
@@ -172,36 +173,50 @@ def report_backup(backup_result: dict[str, Any]):
     else:
         print(text)
 
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
-# DOESN't FALLBACK TO PLAIN TEXT
-# XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 def confirm_deletion(id: int, description: str, max_attempts: int = 3) -> bool:
     """Asks the user a yes/no question and returns True for yes and False for no."""
-    console = Console()                        # type: ignore
-    prompt = Text("Are you sure about deleting task ") + Text(f"{id}: \"{description}\"", 'yellow') + Text(" ?")       #type: ignore
-    msg = prompt + Text(' (') + Text('y', 'yellow') + Text('/n): ')         # type: ignore
-    
+    plain_prompt = f'Are you sure about deleting task {id}: "{description}" ? (y/n): '
+
+    if RICH_AVAILABLE:
+        console = Console()                                                             # type: ignore
+        rich_prompt = (
+            Text("Are you sure about deleting task ")                                   # type: ignore
+            + Text(f"{id}: \"{description}\"", 'yellow')                                # type: ignore
+            + Text(' (') + Text('y', 'yellow') + Text('/n): ')                          # type: ignore
+        )
+
     attempts = 0
     while attempts < max_attempts:
-        console.print(msg)
-        
+        if RICH_AVAILABLE:
+            console.print(rich_prompt)                                                  # type: ignore
+        else:
+            print(plain_prompt)
+
         try:
             response = input().strip().lower()
         except KeyboardInterrupt:
-            msg = Text("aborting deletion attempt...", "yellow")            # type: ignore
-            console.print(msg)
+            if RICH_AVAILABLE:
+                console.print(Text("aborting deletion attempt...", "yellow"))           # type: ignore
+            else:
+                print("aborting deletion attempt...")
             raise
-            
+
         if response in ['y', 'yes']:
             return True
         elif response in ['n', 'no']:
             return False
         else:
-            err1 = Text("Invalid input.", 'red')                            # type: ignore
-            err2 = Text("Please enter '") + Text('y', 'yellow') + Text("' or 'n'.")     # type: ignore
-            console.print(err1, err2)
-            attempts +=1
+            if RICH_AVAILABLE:
+                err1 = Text("Invalid input.", 'red')                                    # type: ignore
+                err2 = Text("Please enter '") + Text('y', 'yellow') + Text("' or 'n'.") # type: ignore
+                console.print(err1, err2)                                               # type: ignore
+            else:
+                print("Invalid input. Please enter 'y' or 'n'.")
+            attempts += 1
 
-    msg = Text(f"Unable to get valid user response after {max_attempts} attempts. Abborting deletion attempt...", 'yellow') # type: ignore
-    console.print(msg)
+    msg = f"Unable to get valid user response after {max_attempts} attempts. Aborting deletion attempt..."
+    if RICH_AVAILABLE:
+        console.print(Text(msg, 'yellow'))                                              # type: ignore
+    else:
+        print(msg)
     return False
