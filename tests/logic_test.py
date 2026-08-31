@@ -66,7 +66,7 @@ def from_json_instance() -> Parser:
 # TESTS
 # ===========
 
-def test_get_current_verison(new_instance, capsys):
+def test_get_current_version(new_instance, capsys):
     """Running -v or --version should output the correct version of the program."""
     with pytest.raises(SystemExit):
         new_instance.main_parser.parse_args(['-v'])
@@ -130,7 +130,7 @@ def test_adding_new_task_on_top_of_existent(from_json_instance):
 
 def test_task_id_has_ID_SIZE_digits(new_instance):
     """Generated task IDs should always contain three digits."""
-    task_id = new_instance.tasks_manager.task_id()
+    task_id = new_instance.tasks_manager._task_id()  # private method
 
     assert len(task_id) == new_instance.tasks_manager.ID_SIZE
     assert task_id.isdigit()
@@ -141,7 +141,7 @@ def test_task_id_retries_when_generated_id_already_exists(monkeypatch):
     generated_digits = iter([1, 2, 3, 4, 5, 6])
     monkeypatch.setattr("easydone.logic.randint", lambda _start, _end: next(generated_digits))
 
-    assert manager.task_id() == "456"
+    assert manager._task_id() == "456"
 
 def test_update_existing_task(from_json_instance):
     """The update command should change only the requested task fields."""
@@ -334,10 +334,9 @@ def test_delete_mixed_valid_and_invalid_raises_error_no_deletion(from_json_insta
     with pytest.raises(KeyError) as exc_info:
         args.func(args)
 
-    # The KeyError should mention the missing IDs (implementation-dependent)
-    # At minimum, we check that no deletion occurred.
+    # No deletion occurred
     assert set(tasks.keys()) == initial_ids
-    # Optionally, assert that the error message contains "999"
+    # The error message mentions the missing ID
     assert "999" in str(exc_info.value)
 
 def test_update_delete_and_mark_raise_key_error_for_missing_tasks(new_instance):
@@ -368,47 +367,51 @@ def test_update_delete_and_mark_raise_key_error_for_missing_tasks(new_instance):
     with pytest.raises(KeyError):
         delete_args.func(delete_args)
 
-# ---- List command tests ----
+# ---- List command tests (checking printed output) ----
 
-def test_list_without_filters(from_json_instance):
-    """The list command without filters should return every task ID."""
+def test_list_without_filters(from_json_instance, capsys):
+    """The list command without filters should show all tasks."""
     args = from_json_instance.main_parser.parse_args(["list"])
+    args.func(args)
 
-    result = args.func(args)
+    captured = capsys.readouterr()
+    output = captured.out
+    # Check that all three task IDs appear somewhere in the output
+    assert '123' in output
+    assert '456' in output
+    assert '111' in output
 
-    assert '123' in result
-    assert '456' in result
-    assert '111' in result
-
-def test_list_filters_by_status(from_json_instance):
-    """The status option should return only tasks with that status."""
+def test_list_filters_by_status(from_json_instance, capsys):
+    """The status option should show only tasks with that status."""
     args = from_json_instance.main_parser.parse_args([
         "list",
         "--status",
         "done",
     ])
+    args.func(args)
 
-    result = args.func(args)
+    captured = capsys.readouterr()
+    output = captured.out
+    assert '123' not in output
+    assert '456' in output
+    assert '111' not in output
 
-    assert '123' not in result
-    assert '456' in result
-    assert '111' not in result
-
-def test_list_filters_by_priority(from_json_instance):
-    """The priority option should return only tasks with that priority."""
+def test_list_filters_by_priority(from_json_instance, capsys):
+    """The priority option should show only tasks with that priority."""
     args = from_json_instance.main_parser.parse_args([
         "list",
         "--priority",
         "low",
     ])
+    args.func(args)
 
-    result = args.func(args)
+    captured = capsys.readouterr()
+    output = captured.out
+    assert '123' in output
+    assert '456' not in output
+    assert '111' not in output
 
-    assert '123' in result
-    assert '456' not in result
-    assert '111' not in result
-
-def test_list_filters_by_status_and_priority(from_json_instance):
+def test_list_filters_by_status_and_priority(from_json_instance, capsys):
     """Status and priority options should be applied together."""
     args = from_json_instance.main_parser.parse_args([
         "list",
@@ -417,9 +420,10 @@ def test_list_filters_by_status_and_priority(from_json_instance):
         "--priority",
         "urgent",
     ])
+    args.func(args)
 
-    result = args.func(args)
-
-    assert '123' not in result
-    assert '456' not in result
-    assert '111' in result
+    captured = capsys.readouterr()
+    output = captured.out
+    assert '123' not in output
+    assert '456' not in output
+    assert '111' in output
