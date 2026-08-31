@@ -46,6 +46,11 @@ class TasksManager():
             raise ValueError("New description must be different from the current description.")
         if new_prior is not None and new_prior == task['priority']:
             raise ValueError("New priority must be different from the current priority.")
+        
+        updated = False
+        if new_descr:
+            task['description'] = new_descr
+            updated = True
 
         updated = False
         if new_descr is not None:
