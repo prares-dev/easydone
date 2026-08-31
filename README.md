@@ -12,6 +12,16 @@ pip install easydone
 
 ---
 
+## 📚 About this Project
+
+This project was built as a solution to the **Task Tracker** project on
+[roadmap.sh](https://roadmap.sh/projects/task-tracker).
+
+The goal was to practice building a real-world CLI tool with:
+- A clean, user-friendly interface
+- Robust data storage with atomic writes and automatic backups
+- A well-tested, maintainable codebase
+
 ## ✨ Why you'll like it
 
 - **Instant workflow** – no mouse, no distractions.
