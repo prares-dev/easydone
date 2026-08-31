@@ -1,232 +1,187 @@
-# easydone - Task Tracker App
+# easydone
 
-> A focused command-line task manager for turning a messy to-do list into a clear next action.
+> Your terminal-based task manager — simple, fast, and safe.
 
-easydone is a lightweight Python CLI for creating, updating, completing, deleting, and filtering tasks directly from your terminal. Tasks are saved as readable JSON, and the storage layer now includes **automatic backups, corruption quarantine, and atomic writes** to keep your data safe.
+**easydone** is a lightweight CLI tool to keep your to‑do list in check.  
+Create, update, mark done, delete, and filter tasks with a few keystrokes.  
+All your data is stored as plain JSON, with **atomic writes, automatic backups, and corruption quarantine** so you never lose a task.
 
-## Why easydone?
+```shell
+pip install easydone
+```
 
-- Fast terminal-first workflow  
-- Statuses for work in motion: `not-done`, `in-progress`, and `done`  
-- Four priority levels: `low`, `normal`, `high`, and `urgent`  
-- Filter tasks by status, priority, or both  
-- Human-readable JSON storage with no database setup  
-- **Bulletproof data handling**: atomic writes, automatic `.bak` backups, and quarantine of corrupted files  
-- Pretty terminal output with [Rich](https://github.com/Textualize/rich) (falls back to plain text if unavailable)
+---
 
-## Project Structure
+## ✨ Why you'll like it
 
-```text
+- **Instant workflow** – no mouse, no distractions.
+- **Smart statuses**: `not-done`, `in-progress`, `done`.
+- **Priority levels**: `low`, `normal`, `high`, `urgent`.
+- **Filter** tasks by status, priority, or both.
+- **Human‑readable JSON** – inspect your data anytime.
+- **Bulletproof storage** – atomic writes, `.bak` backups, and quarantined corrupt files.
+- **Beautiful output** with [Rich](https://github.com/Textualize/rich) – **optional**, falls back to plain text if not installed.
+- **Clean architecture** – business logic separated from CLI, making the core testable and reusable.
+
+---
+
+## 📦 Installation
+
+### Basic install (no extras)
+
+```shell
+pip install easydone
+```
+
+This installs the core tool with plain‑text output. Works perfectly for everyday use.
+
+### With Rich (pretty output)
+
+```shell
+pip install easydone[pretty]
+```
+
+This installs [Rich](https://github.com/Textualize/rich) for colored tables, styled text, and a more polished terminal experience.
+
+> 💡 **Note**: Rich is **completely optional**. If you install the basic version, easydone automatically falls back to clean plain‑text output. No functionality is lost – it just looks different.
+
+---
+
+## 🚀 Quick Start
+
+```shell
+# Create a task
+easydone new "Read a book"
+
+# Add details
+easydone new "Finish report" --status in-progress --priority high
+
+# List everything
+easydone list
+
+# Focus on urgent, unfinished tasks
+easydone list --status not-done --priority urgent
+
+# Mark complete
+easydone mark 123 done
+
+# Delete (with confirmation)
+easydone delete 123
+
+# Delete without confirmation
+easydone delete 123 -f
+
+# Delete multiple tasks
+easydone delete 123 456 789 -f
+```
+
+---
+
+## 📋 Command Reference
+
+| Command | Description |
+| :------ | :---------- |
+| `easydone new DESCRIPTION [--status STATUS] [--priority PRIORITY]` | Create a task. Status defaults to `not-done`, priority to `low`. |
+| `easydone update TASK_ID [--description NEW] [--priority NEW]` | Change description and/or priority. |
+| `easydone mark TASK_ID new-status` | Set status to `not-done`, `in-progress`, or `done`. |
+| `easydone delete TASK_ID [TASK_ID ...] [-f]` | Delete one or more tasks. Use `-f` to skip confirmation. |
+| `easydone list [--status STATUS] [--priority PRIORITY] [--no-dates]` | Show tasks. Apply filters and hide dates if you like. |
+
+> 💡 **Pro tip**: Delete multiple IDs at once: `easydone delete 123 456 789`. All IDs are validated before anything is removed – no partial deletions. Press `Ctrl+C` at any prompt to cancel the entire operation.
+
+---
+
+## 🛡️ Safety first
+
+easydone takes care of your data:
+
+- **Atomic writes** – a crash mid‑save never corrupts your file.
+- **Automatic backups** – each save creates a `tasks.json.bak` in the same directory.
+- **Corruption quarantine** – if a file is unreadable, it's copied to `tasks.corrupted-<timestamp>.json` instead of being discarded.
+
+Your tasks live in a user‑specific folder:
+
+| Platform | Location |
+| :------- | :------- |
+| Windows | `%APPDATA%\easydone\tasks.json` |
+| macOS | `~/Library/Application Support/easydone/tasks.json` |
+| Linux | `~/.local/share/easydone/tasks.json` |
+
+You can override the storage path by setting the `EASYDONE_DATA_FILE` environment variable.
+
+---
+
+## 📁 Project Structure
+
+```
 easydone/
 ├── easydone/
-│   ├── __init__.py   # Package metadata (version, etc.)
+│   ├── __init__.py   # Package metadata
 │   ├── __main__.py   # Application entry point
-│   ├── cli.py        # Argument parser and command dispatch
-│   ├── logic.py      # Task-management operations
-│   ├── storage.py    # JSON loading/saving with backup & quarantine
-│   └── format.py     # Output formatting (Rich / plain)
+│   ├── cli.py        # CLI interface (argparse, handlers, user prompts)
+│   ├── logic.py      # Pure business logic (CRUD, validation, filtering)
+│   ├── storage.py    # JSON persistence with atomic writes, backup & quarantine
+│   └── format.py     # Output formatting (Rich / plain text)
 ├── tests/
-│   ├── test_cli.py
-│   ├── test_logic.py
-│   ├── test_storage.py
-│   └── test_format.py
+│   ├── test_integration.py   # CLI + Logic integration tests
+│   ├── test_storage.py     # Storage layer tests
+│   └── test_format.py      # Output formatting tests
 ├── LICENSE
-├── pyproject.toml    # Packaging and pytest configuration
+├── pyproject.toml
 └── README.md
 ```
 
-## Quick Start
+### Architecture Overview
 
-### Requirements
+- **`logic.py`** – Core business logic. Knows nothing about the CLI. Accepts only plain Python types (`str`, `list`, `bool`, etc.).
+- **`cli.py`** – CLI interface. Parses arguments, extracts values, calls the manager, handles user prompts.
+- **`storage.py`** – Persistence layer. Handles loading, saving, atomic writes, backups, and quarantine.
+- **`format.py`** – Presentation layer. Renders tables and messages with Rich or plain‑text fallback.
 
-- Python 3.9 or newer  
-- Windows PowerShell, macOS, or Linux terminal
+This design makes the core reusable in other contexts (API, TUI, GUI) and easy to test.
 
-From the project root, create a virtual environment and install `easydone` in editable mode:
+---
 
-```powershell
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-py -m pip install -e .
-```
+## 🔧 Development
 
-On macOS or Linux:
-
-```bash
-python3 -m venv .venv
-source .venv/bin/activate
-python -m pip install -e .
-```
-
-Or install directly from PyPI:
-
-```powershell
-py -m pip install easydone
-```
-
-You can now run the application:
+Install in editable mode with dev dependencies:
 
 ```shell
-easydone
-```
-
-To see all available commands:
-
-```shell
-easydone --help
-```
-
-## Everyday Workflow
-
-Create a task:
-
-```shell
-easydone new "Read a book"
-```
-
-Create a task with a status and priority:
-
-```shell
-easydone new "Finish project report" --status in-progress --priority high
-```
-
-List everything:
-
-```shell
-easydone list
-```
-
-Focus on urgent unfinished work:
-
-```shell
-easydone list --status not-done --priority urgent
-```
-
-Mark a task as complete:
-
-```shell
-easydone mark 123 done
-```
-
-## Command Reference
-
-### `new`
-
-Create a task. The description is required.
-
-```shell
-easydone new DESCRIPTION [--status STATUS] [--priority PRIORITY]
-```
-
-Options:
-
-- `-s`, `--status`: `not-done`, `done`, or `in-progress`; defaults to `not-done`
-- `-p`, `--priority`: `low`, `normal`, `high`, or `urgent`; defaults to `low`
-
-### `update`
-
-Change the description and/or priority of an existing task.  
-The `--priority` option now validates against the four allowed values.
-
-```shell
-easydone update TASK_ID [--description NEW_DESCRIPTION] [--priority NEW_PRIORITY]
-```
-
-Examples:
-
-```shell
-easydone update 123 --description "Read a novel"
-easydone update 123 --priority high
-```
-
-### `mark`
-
-Change the status of an existing task.
-
-```shell
-easydone mark TASK_ID new-status
-```
-
-### `delete`
-
-Delete one or more existing tasks. easydone tasks for confirmation for each ID unless `-f` or `--forced` is used.
-
-```shell
-easydone delete TASK_ID [TASK_ID ...]
-easydone delete TASK_ID [TASK_ID ...] --forced
-```
-
-If you supply multiple IDs, all of them are validated before any deletion occurs. If any ID is invalid, the entire operation is aborted and no tasks are removed.
-
-### `list`
-
-List all tasks or filter them by status and priority. You can omit dates with the `--no-dates` option.
-
-```shell
-easydone list [--status STATUS] [--priority PRIORITY] [--no-dates]
-```
-
-When both filters are supplied, a task must match both of them.
-
-## Data Storage
-
-`easydone` stores task data in a user‑scoped application directory so it does not depend on where the command is launched from.
-
-- **Windows**: `%APPDATA%\easydone\tasks.json`
-- **macOS**: `~/Library/Application Support/easydone/tasks.json`
-- **Linux**: `~/.local/share/easydone/tasks.json`
-
-The app writes a small metadata wrapper with the file schema version and the version of easydone that saved it. This makes future upgrades safer and compatibility warnings explicit.
-
-```json
-{
-    "schema_version": 1,
-    "app_version": "0.2.0",
-    "saved_at": "2026-08-28",
-    "tasks": {
-        "123": {
-            "description": "Finish project report",
-            "status": "in-progress",
-            "priority": "high",
-            "created-at": "2026-08-28",
-            "updated-at": null
-        }
-    }
-}
-```
-
-### Safety & Recovery
-
-`easydone` now protects your data in three ways:
-
-1. **Atomic writes**: Every save writes to a temporary file first, then swaps it atomically. A crash mid‑write never leaves a half‑written file.
-2. **Automatic backups**: Before every save, the current `tasks.json` is copied to `tasks.json.bak`. If something goes wrong, you can restore from this backup.
-3. **Corruption quarantine**: If easydone encounters an unreadable or malformed file on load, it copies that file to `tasks.corrupted-<timestamp>.json` instead of discarding it. You can inspect the quarantined file and recover data manually.
-
-If an older file is found (different schema or app version), `easydone` still loads it but prints a detailed warning so you can review the data before saving again.
-
-## Development
-
-Install the development dependency group:
-
-```shell
-py -m pip install -e ".[dev]"
+git clone https://github.com/prares-dev/easydone.git
+cd easydone
+python -m venv .venv
+source .venv/bin/activate   # or .venv\Scripts\activate on Windows
+pip install -e ".[dev]"
 ```
 
 Run the complete test suite:
 
 ```shell
-py -m pytest
+pytest
 ```
 
-Run a specific test module:
+Run a specific test file:
 
 ```shell
-py -m pytest tests/logic_test.py
-py -m pytest tests/storage_test.py
-py -m pytest tests/format_test.py
+pytest tests/test_integration.py
+pytest tests/test_storage.py
+pytest tests/test_format.py
 ```
 
-## License
+### Test Structure
 
-This project is available under the license in [LICENSE](LICENSE).
+| Test File | What It Tests |
+| :-------- | :------------ |
+| `test_cli_logic.py` | CLI + Logic integration (argument parsing, handlers, user interaction, output) |
+| `test_storage.py` | Storage layer (loading, saving, atomic writes, backups, quarantine) |
+| `test_format.py` | Output formatting (Rich availability, plain‑text fallback) |
+
+---
+
+## 📄 License
+
+MIT – see [LICENSE](LICENSE).
+
+---
+
+**Made with ❤️ by [Pedro Rosquete](https://github.com/prares-dev)** — feedback and contributions are always welcome!
