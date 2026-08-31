@@ -2,6 +2,7 @@
 .venv/
 .vscode/
 *.code-workspace
+scripts/
 
 # Python-generated files
 __pycache__/
