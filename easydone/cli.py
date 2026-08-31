@@ -1,10 +1,7 @@
 from argparse import ArgumentParser, Namespace, SUPPRESS
-from .logic import TasksManager
+from .logic import TasksManager, SUPPORTED_PRIORITIES, SUPPORTED_STATUS
 from .format import print_table, confirm_deletion
 from . import __version__
-
-SUPPORTED_STATUS = ["not-done", "done", "in-progress"]
-SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
 
 class Parser():
     """ A class to manage all the argument parser and command features. """
@@ -54,11 +51,11 @@ class Parser():
             choices=SUPPORTED_PRIORITIES, default=SUPPORTED_PRIORITIES[0])
         
         # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
-        new_pars.set_defaults(func=self.tasks_manager.new)
+        new_pars.set_defaults(func=self._handle_new)
         
         # 'UPDATE' command
         # ====================
-        update_pars = sub_pars.add_parser("update", help="Update a task.", argument_default=SUPPRESS)
+        update_pars = sub_pars.add_parser("update", help="Update a task.")
         
         update_pars.add_argument(
             "id", type=str, 
@@ -132,16 +129,6 @@ class Parser():
         except ValueError as exc:
             self.main_parser.error(str(exc))
             return False
-
-        if getattr(args, 'func', None) == self.tasks_manager.list:
-            filtered_ids = args.func(args)
-            print_table(self.tasks_manager.tasks, filtered_ids, no_dates=args.no_dates) 
-            return False
-    
-        if getattr(args, 'func', None) == self.tasks_manager.update:
-            has_update_target = hasattr(args, 'description') or hasattr(args, 'priority')
-            if not has_update_target:
-                self.main_parser.error("the update command requires at least one field change: --description or --priority")
         
         if not hasattr(args, 'func'):
             # in case user invokes the program without arguments like:
@@ -154,14 +141,14 @@ class Parser():
                 return returned if returned is not None else True
             except (KeyError, ValueError) as exc:
                 self.main_parser.error(str(exc))
-                
+
     def _handle_delete(self, args: Namespace) -> bool:
         unique_ids = list(dict.fromkeys(args.ids))  # dedupe, preserve order
 
         # validate before prompting — never ask the user to confirm a phantom task
         for id in unique_ids:
             if id not in self.tasks_manager.tasks:
-                raise KeyError(f"Unexistent task ({id})")
+                raise KeyError(f"Nonexistent task ({id})")
 
         removed = []
         if args.forced:
@@ -175,3 +162,44 @@ class Parser():
                     return bool(removed)
         
         return bool(removed)
+
+    def _handle_list(self, args: Namespace) -> bool:
+        filtered_ids = self.tasks_manager.list(
+            status=args.status, priority=args.priority
+            )
+        print_table(
+            self.tasks_manager.tasks, 
+            filtered_ids, no_dates=args.no_dates)
+        return False
+
+    def _handle_update(self, args: Namespace) -> bool:
+        has_update_target = args.description or args.priority
+        if not has_update_target:
+            self.main_parser.error("the update command requires at least one field change: --description or --priority")
+        
+        try:
+            return self.tasks_manager.update(
+                args.id, 
+                new_descr=args.description, 
+                new_prior=args.priority
+                )
+        except (KeyError, ValueError) as exc:
+            self.main_parser.error(str(exc))
+
+    def _handle_new(self, args: Namespace) -> bool:
+        try:
+            return self.tasks_manager.new(
+            description=args.description,
+            status=args.status,
+            priority=args.priority
+        )
+        except ValueError as exc:
+            self.main_parser.error(str(exc))
+
+    def _handle_mark(self, args: Namespace) -> bool:
+        try:
+            return self.tasks_manager.mark(
+            id=args.id, new_status=args.status
+        )
+        except ValueError as exc:
+            self.main_parser.error(str(exc))
