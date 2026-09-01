@@ -31,7 +31,7 @@ These tests verify that:
 - Errors are caught and displayed properly
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -46,43 +46,40 @@ def manager():
 
     These tasks are used in most tests to simulate realistic data.
     """
-    date = str(datetime.now()).split(" ")[0]
+    date = datetime(2026, 9, 1)
     return TasksManager({
         "123": {
             "description": "read a book",
             "status": "not-done",
             "priority": "low",
-            "created-at": date,
-            "updated-at": None
+            "created-at": str(date + timedelta(days=3)).split(" ")[0],
+            "updated-at": str(date + timedelta(days=9)).split(" ")[0]
         },
         "456": {
             "description": "write code",
             "status": "done",
             "priority": "normal",
-            "created-at": date,
-            "updated-at": None
+            "created-at": str(date).split(" ")[0],
+            "updated-at": str(date + timedelta(days=4)).split(" ")[0]
         },
         "111": {
             "description": "go supermarket",
             "status": "in-progress",
             "priority": "urgent",
-            "created-at": date,
-            "updated-at": None
+            "created-at": str(date + timedelta(days=5)).split(" ")[0],
+            "updated-at": str(date + timedelta(days=7)).split(" ")[0]
         }
     })
-
 
 @pytest.fixture
 def empty_manager():
     """Return a TasksManager with no tasks (fresh start)."""
     return TasksManager({})
 
-
 @pytest.fixture
 def parser(manager):
     """Return a Parser instance with predefined tasks."""
     return Parser(manager)
-
 
 @pytest.fixture
 def empty_parser(empty_manager):
@@ -299,7 +296,38 @@ def test_delete_handler_validates_ids_before_prompting(parser):
 
 
 # ============================================================
-# 4. RETURN VALUES (mutation flags)
+# 4. BUSSINES LOGIC FUNCTIONS
+# ============================================================
+
+def test_list_returns_sorted_ids(manager):
+    """Test that list command returns tasks sorted by fields."""
+    # Sort by status
+    ids = manager.list(sort_by="status")
+    assert ids == ["123", "111", "456"]  # not-done, in-progress, done
+    ids = manager.list(sort_by="status", reverse=True)
+    assert ids == ["123", "111", "456"][::-1] # reverse order
+    
+    # Sort by priority
+    ids = manager.list(sort_by="priority")
+    assert ids == ["123", "456", "111"]  # low, normal, urgent
+    ids = manager.list(sort_by="priority", reverse=True)
+    assert ids == ["123", "456", "111"][::-1]
+
+    # Sort by created date
+    ids = manager.list(sort_by="created")
+    assert ids == ["456", "123", "111"]
+    ids = manager.list(sort_by="created", reverse=True)
+    assert ids == ["456", "123", "111"][::-1] 
+
+    # Sort by updated date 
+    ids = manager.list(sort_by="updated")
+    assert ids == ["456", "111", "123"]
+    ids = manager.list(sort_by="updated", reverse=True)
+    assert ids == ["456", "111", "123"][::-1] 
+
+
+# ============================================================
+# 5. RETURN VALUES (mutation flags)
 # ============================================================
 
 def test_new_handler_returns_true(empty_parser):
@@ -347,7 +375,7 @@ def test_delete_handler_returns_true_when_forced(parser):
 
 
 # ============================================================
-# 5. USER INTERACTION (confirmation prompts)
+# 6. USER INTERACTION (confirmation prompts)
 # ============================================================
 
 def test_delete_confirmation_deletes_on_yes(parser, monkeypatch):
@@ -413,7 +441,7 @@ def test_delete_confirmation_aborts_on_keyboardinterrupt(parser, monkeypatch):
 
 
 # ============================================================
-# 6. ERROR HANDLING
+# 7. ERROR HANDLING
 # ============================================================
 
 def test_update_requires_at_least_one_change(parser, monkeypatch):
@@ -455,7 +483,7 @@ def test_start_parsing_catches_exceptions_and_shows_message(empty_parser, capsys
 
 
 # ============================================================
-# 7. OUTPUT (list command)
+# 8. OUTPUT (list command)
 # ============================================================
 
 def test_list_shows_all_tasks(parser, capsys):
@@ -494,3 +522,4 @@ def test_list_filters_by_both(parser, capsys):
     assert "123" not in output
     assert "456" not in output
     assert "111" in output
+

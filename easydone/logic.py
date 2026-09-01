@@ -96,9 +96,9 @@ class TasksManager():
         return removed
 
     def list(   self, *,
-                filt_status: Optional[str],
-                filt_priority: Optional[str],
-                sort_by: Optional[str],
+                filt_status: Optional[str] = None,
+                filt_priority: Optional[str] = None,
+                sort_by: Optional[str] = None,
                 reverse: bool = False
                 ) -> list[str]:
         """ Returns a filtered list of ids according to status and priority. """
