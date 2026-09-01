@@ -26,9 +26,13 @@ class Parser():
             '-v', '--version', help='Display app version.', action="version",
             version="%(prog)s " + __version__)
         
-        # Sub-commands parser
-        sub_pars = self.main_parser.add_subparsers(title="actions")
+        self.main_parser.add_argument(
+            "--no-dates", action="store_true",
+            help="Not output dates (only meaningful with commands like 'search' and 'list').",)
         
+        # Sub-commands parser
+        sub_pars = self.main_parser.add_subparsers(title="Commands", description="Available commands", dest="command")
+    
         # ====================
         # 'NEW' command
         
@@ -137,10 +141,6 @@ class Parser():
         output_group = list_pars.add_argument_group(     
             title="Output", description="Output customizing options.")
         
-        output_group.add_argument(
-            "--no-dates", action="store_true",
-            help="Not output dates.",)
-        
         list_pars.set_defaults(func=self._handle_list)
         
         # ====================
@@ -235,6 +235,6 @@ class Parser():
         matched = self.tasks_manager.search(args.query)
         print_table(
             self.tasks_manager.tasks, 
-            matched, no_dates=True
+            matched, no_dates=args.no_dates
             )
         return False
