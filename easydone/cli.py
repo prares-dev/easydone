@@ -114,10 +114,20 @@ class Parser():
             "-p", "--priority", type=str, 
             help="To list all tasks with a given priority.",
             choices=SUPPORTED_PRIORITIES, default=None)
-    
+
         list_pars.add_argument(
             "--no-dates", action="store_true",
             help="Not ouput dates.",)
+        
+        # New sorting arguments
+        list_pars.add_argument(
+            "--sort", type=str,
+            help="Sort tasks by field (priority, status, created, updated).",
+            choices=["priority", "status", "created", "updated"])
+
+        list_pars.add_argument(
+            "-r", "--reverse", action="store_true",
+            help="Reverse the sort order (only meaningful with --sort)")
         
         list_pars.set_defaults(func=self._handle_list)
 
@@ -163,12 +173,16 @@ class Parser():
         return bool(removed)
 
     def _handle_list(self, args: Namespace) -> bool:
-        filtered_ids = self.tasks_manager.list(
-            status=args.status, priority=args.priority
+        ids = self.tasks_manager.list(
+            filt_status=args.status, 
+            filt_priority=args.priority,
+            sort_by = args.sort, 
+            reverse=args.reverse
             )
         print_table(
             self.tasks_manager.tasks, 
-            filtered_ids, no_dates=args.no_dates)
+            ids, no_dates=args.no_dates
+            )
         return False
 
     def _handle_update(self, args: Namespace) -> bool:

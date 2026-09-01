@@ -2,8 +2,15 @@ from random import randint
 from datetime import datetime
 from typing import Optional, Literal
 
-SUPPORTED_STATUS = ["not-done", "done", "in-progress"]
+SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
+
+STATUS_ORDER = {status: int(i) 
+                for i, status in enumerate(SUPPORTED_STATUS)}
+
+PRIORITY_ORDER = {  prior: int(i) 
+                    for i, prior in enumerate(SUPPORTED_PRIORITIES)}
+
 
 class TasksManager():
     """ A class to manage all tasks logic. """
@@ -31,10 +38,10 @@ class TasksManager():
         }
         return True
 
-    def update(self, id: str, *,
-               new_descr: Optional[str],
-               new_prior: Optional[str]
-               ) -> bool:
+    def update( self, id: str, *,
+                new_descr: Optional[str],
+                new_prior: Optional[str]
+                ) -> bool:
         """ Updates a task. """
         if id not in self.tasks:
             raise KeyError(f"Nonexistent task ({id})")
@@ -88,21 +95,50 @@ class TasksManager():
             removed.append(id)
         return removed
 
-    def list(self, *,
-             status: Optional[str],
-             priority: Optional[str]
-             ) -> list[str]:
+    def list(   self, *,
+                filt_status: Optional[str],
+                filt_priority: Optional[str],
+                sort_by: Optional[str],
+                reverse: bool = False
+                ) -> list[str]:
         """ Returns a filtered list of ids according to status and priority. """
-        if status is not None and status not in SUPPORTED_STATUS:
-            raise ValueError(f"Invalid status filter: {status}")
-        if priority is not None and priority not in SUPPORTED_PRIORITIES:
-            raise ValueError(f"Invalid priority filter: {priority}")
+        
+        # validate filters
+        if filt_status is not None and filt_status not in SUPPORTED_STATUS:
+            raise ValueError(f"Invalid status filter: {filt_status}")
+        if filt_priority is not None and filt_priority not in SUPPORTED_PRIORITIES:
+            raise ValueError(f"Invalid priority filter: {filt_priority}")
 
-        ids = []
+        if not self.tasks:
+            return []
+        
+        filtered = []
         for key, value in self.tasks.items():
-            if (status is None or value['status'] == status) and (priority is None or value['priority'] == priority):
-                ids.append(key)
-        return ids
+            if (filt_status is None or value['status'] == filt_status) and (filt_priority is None or value['priority'] == filt_priority):
+                filtered.append(key)
+                
+        
+        def key_func(task_id: str) -> int | str:
+            if sort_by == "status":
+                return STATUS_ORDER[self.tasks[task_id]['status']]
+        
+            elif sort_by == "priority":
+                return PRIORITY_ORDER[self.tasks[task_id]['priority']]
+        
+            elif sort_by == "created":
+                return self.tasks[task_id].get('created-at', '0')
+
+            elif sort_by == "updated":
+                updated = self.tasks[task_id].get('updated-at')
+                return updated if updated is not None else '9000-01-01'
+            
+            else:
+                raise ValueError(f"Invalid sort field ({sort_by})")
+        
+        if sort_by is not None:
+            filtered.sort(key=key_func, reverse=reverse)
+            
+        return filtered
 
     def _task_id(self) -> str:
         """ Returns a random id, formed by digits, the number of digits is determined by self.ID_SIZE"""
