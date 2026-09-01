@@ -138,9 +138,6 @@ class Parser():
             "-r", "--reverse", action="store_true",
             help="Reverse the sort order (only meaningful with --sort)")
         
-        output_group = list_pars.add_argument_group(     
-            title="Output", description="Output customizing options.")
-        
         list_pars.set_defaults(func=self._handle_list)
         
         # ====================
