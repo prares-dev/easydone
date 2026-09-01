@@ -139,7 +139,19 @@ class TasksManager():
             filtered.sort(key=key_func, reverse=reverse)
             
         return filtered
-
+    
+    def search(self, query: str) -> list[str]:
+        """ Returns a list of ids whose description contains the given term. """
+        if not self.tasks:
+            return []
+        
+        matched = []
+        for key, value in self.tasks.items():
+            if query.lower() in value['description'].lower():
+                matched.append(key)
+        
+        return matched
+    
     def _task_id(self) -> str:
         """ Returns a random id, formed by digits, the number of digits is determined by self.ID_SIZE"""
         id = None

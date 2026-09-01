@@ -81,19 +81,6 @@ def _render_parts(parts: List[MyText]) -> None:
     else:
         print("".join(part.get("text", "") for part in parts))
 
-
-def _print_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool = False) -> None:
-    """Render a task table with Rich or plain text fallback."""
-    if not ids:
-        print("No tasks to show.")
-        return
-
-    if not RICH_AVAILABLE:
-        _plain_table(tasks, ids, no_dates)
-    else:
-        _rich_table(tasks, ids, no_dates)
-
-
 def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Plain text table renderer."""
     print("┌────────────────────────┐")
@@ -173,8 +160,15 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
 # ----------------------------------------------------------------------------
 
 def print_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool = False) -> None:
-    """Print a task table."""
-    _print_table(tasks, ids, no_dates)
+    """Render a task table with Rich or plain text fallback."""
+    if not ids:
+        _print("No tasks to show.", style='yellow')
+        return
+    
+    if not RICH_AVAILABLE:
+        _plain_table(tasks, ids, no_dates)
+    else:
+        _rich_table(tasks, ids, no_dates)
 
 
 def describe_load_result(result: LoadingResult) -> None:

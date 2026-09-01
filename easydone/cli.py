@@ -29,8 +29,8 @@ class Parser():
         # Sub-commands parser
         sub_pars = self.main_parser.add_subparsers(title="actions")
         
-        # 'NEW' command
         # ====================
+        # 'NEW' command
         
         # Create parser for 'new' command
         new_pars = sub_pars.add_parser("new", help="Create a new task")
@@ -53,8 +53,9 @@ class Parser():
         # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
         new_pars.set_defaults(func=self._handle_new)
         
-        # 'UPDATE' command
         # ====================
+        # 'UPDATE' command
+        
         update_pars = sub_pars.add_parser("update", help="Update a task.")
         
         update_pars.add_argument(
@@ -72,8 +73,9 @@ class Parser():
 
         update_pars.set_defaults(func=self._handle_update)
         
+        # ====================   
         # 'MARK' command
-        # ====================
+
         mark_pars = sub_pars.add_parser("mark", help="Mark a task with a new status.")
         
         mark_pars.add_argument(
@@ -87,8 +89,9 @@ class Parser():
         
         mark_pars.set_defaults(func=self._handle_mark)
         
-        # 'DELETE' command
         # ====================
+        # 'DELETE' command
+        
         del_pars = sub_pars.add_parser("delete", help="Deletes a task.")
         
         del_pars.add_argument(
@@ -101,8 +104,9 @@ class Parser():
         
         del_pars.set_defaults(func=self._handle_delete)
         
-        # 'LIST' command
         # ====================
+        # 'LIST' command
+        
         list_pars = sub_pars.add_parser("list", help="List all tasks.")
         
         filt_group = list_pars.add_argument_group(
@@ -138,6 +142,18 @@ class Parser():
             help="Not output dates.",)
         
         list_pars.set_defaults(func=self._handle_list)
+        
+        # ====================
+        # 'SEARCH' command
+        
+        search_pars = sub_pars.add_parser(
+            "search", help="Search for tasks by description.")
+        
+        search_pars.add_argument(
+            "query", type=str, metavar='term',
+            help="Search term.")
+        
+        search_pars.set_defaults(func=self._handle_search)
 
     def start_parsing(self) -> bool:
         """ Parses the arguments passed. Returns true if some command mutated state of any task. """
@@ -214,3 +230,11 @@ class Parser():
         return self.tasks_manager.mark(
             id=args.id, new_status=args.new_status
         )
+    
+    def _handle_search(self, args: Namespace) -> bool:
+        matched = self.tasks_manager.search(args.query)
+        print_table(
+            self.tasks_manager.tasks, 
+            matched, no_dates=True
+            )
+        return False
