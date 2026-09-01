@@ -1,7 +1,19 @@
+"""
+
+┌─────────────────────────────────────────────────────────────────────┐
+│ FIXTURES: The "tools" pytest gives us                               │
+├─────────────────────────────────────────────────────────────────────┤ 
+│                                                                     │
+│ tmp_path    - Creates a temporary directory that's cleaned up.      │
+│               Use it for file operations without affecting          │
+│               your real data.                                       │
+│               Example: json_file = tmp_path / "tasks.json"          │
+└─────────────────────────────────────────────────────────────────────┘
+
+"""
+
 import json
-import os
 import shutil
-from pathlib import Path
 
 import pytest
 

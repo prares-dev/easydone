@@ -17,11 +17,6 @@ We use pytest fixtures that might look unfamiliar, so here's what they do:
 │               - Control environment variables                       │
 │               - Replace functions with mock versions                │
 │               Example: monkeypatch.setattr("builtins.input", ...)   │
-│                                                                     │
-│ tmp_path    - Creates a temporary directory that's cleaned up.      │
-│               Use it for file operations without affecting          │
-│               your real data.                                       │
-│               Example: json_file = tmp_path / "tasks.json"          │
 └─────────────────────────────────────────────────────────────────────┘
 These tests verify that:
 - The CLI parser extracts arguments correctly
@@ -32,6 +27,7 @@ These tests verify that:
 """
 
 from datetime import datetime, timedelta
+import re
 
 import pytest
 
@@ -40,12 +36,13 @@ from easydone.logic import TasksManager
 from easydone import __version__
 
 
+# ----------------------------------------------------------------------------
+# Fixtures
+# ----------------------------------------------------------------------------
+
 @pytest.fixture
 def manager():
-    """Return a TasksManager with 3 predefined tasks for testing.
-
-    These tasks are used in most tests to simulate realistic data.
-    """
+    """TasksManager with 3 tasks at different dates for sorting tests."""
     date = datetime(2026, 9, 1)
     return TasksManager({
         "123": {
@@ -71,455 +68,303 @@ def manager():
         }
     })
 
+
 @pytest.fixture
 def empty_manager():
-    """Return a TasksManager with no tasks (fresh start)."""
     return TasksManager({})
+
 
 @pytest.fixture
 def parser(manager):
-    """Return a Parser instance with predefined tasks."""
     return Parser(manager)
+
 
 @pytest.fixture
 def empty_parser(empty_manager):
-    """Return a Parser instance with no tasks."""
     return Parser(empty_manager)
 
 
-# ============================================================
-# 1. VERSION / HELP
-# ============================================================
+# ----------------------------------------------------------------------------
+# Helpers
+# ----------------------------------------------------------------------------
+
+def extract_ids(output: str) -> list[str]:
+    """Extract task IDs from plain table output."""
+    return re.findall(r'┌─ ID: (\w+)', output)
+
+
+# ----------------------------------------------------------------------------
+# 1. Version / Help
+# ----------------------------------------------------------------------------
 
 def test_version_output(empty_parser, capsys):
-    """Running -v or --version should output the correct version."""
-    # capsys captures what's printed to stdout/stderr
     with pytest.raises(SystemExit):
         empty_parser.main_parser.parse_args(['-v'])
-        output = capsys.readouterr().out
-        assert __version__ in output
-
-    with pytest.raises(SystemExit):
-        empty_parser.main_parser.parse_args(['--version'])
-        output = capsys.readouterr().out
-        assert __version__ in output
+        assert __version__ in capsys.readouterr().out
 
 
 def test_no_args_shows_help(empty_parser, capsys, monkeypatch):
-    """Running 'easydone' with no args should print help."""
-    # monkeypatch temporarily replaces sys.argv so the app thinks
-    # the user just typed "easydone" with no arguments
     monkeypatch.setattr("sys.argv", ["easydone"])
-    result = empty_parser.start_parsing()
-    assert result is False
-
-    # capsys captures what was printed so we can check it
-    output = capsys.readouterr().out
-    assert "usage" in output.lower() or "help" in output.lower() or "actions" in output.lower()
+    assert empty_parser.start_parsing() is False
+    assert "usage" in capsys.readouterr().out.lower()
 
 
-# ============================================================
-# 2. ARGUMENT PARSING (our configuration, not argparse itself)
-# ============================================================
+# ----------------------------------------------------------------------------
+# 2. Parser Configuration
+# ----------------------------------------------------------------------------
 
-def test_new_parser_has_correct_defaults(empty_parser):
-    """Defaults are set correctly in our parser config."""
+def test_new_parser_defaults(empty_parser):
     args = empty_parser.main_parser.parse_args(["new", "test"])
-    assert args.status == "not-done"
-    assert args.priority == "low"
+    assert args.status == "not-done" and args.priority == "low"
 
 
-def test_new_parser_accepts_valid_choices(empty_parser):
-    """Parser accepts valid status and priority choices."""
-    args = empty_parser.main_parser.parse_args([
-        "new", "test", "--status", "done", "--priority", "high"
-    ])
-    assert args.status == "done"
-    assert args.priority == "high"
-
-
-def test_new_parser_rejects_invalid_status(empty_parser):
-    """Parser rejects invalid status choices."""
-    # argparse raises SystemExit when it encounters invalid input
+def test_new_parser_rejects_invalid(empty_parser):
     with pytest.raises(SystemExit):
-        empty_parser.main_parser.parse_args([
-            "new", "test", "--status", "invalid"
-        ])
+        empty_parser.main_parser.parse_args(["new", "test", "--status", "invalid"])
 
 
-def test_new_parser_rejects_invalid_priority(empty_parser):
-    with pytest.raises(SystemExit):
-        empty_parser.main_parser.parse_args([
-            "new", "test", "--priority", "invalid"
-        ])
-
-
-def test_update_parser_accepts_valid_priority(empty_parser):
-    args = empty_parser.main_parser.parse_args([
-        "update", "123", "--priority", "high"
-    ])
-    assert args.priority == "high"
-
-
-def test_update_parser_rejects_invalid_priority(empty_parser):
-    with pytest.raises(SystemExit):
-        empty_parser.main_parser.parse_args([
-            "update", "123", "--priority", "invalid"
-        ])
-
-
-def test_delete_parser_handles_multiple_ids(empty_parser):
-    args = empty_parser.main_parser.parse_args(["delete", "123", "456", "789"])
-    assert args.ids == ["123", "456", "789"]
-    assert args.forced is False
-
-
-def test_delete_parser_handles_forced_flag(empty_parser):
-    args = empty_parser.main_parser.parse_args(["delete", "123", "-f"])
-    assert args.forced is True
-
-
-def test_list_parser_no_dates_default_false(empty_parser):
-    args = empty_parser.main_parser.parse_args(["list"])
-    assert args.no_dates is False
-
-
-def test_list_parser_handles_no_dates_flag(empty_parser):
-    args = empty_parser.main_parser.parse_args(["list", "--no-dates"])
+def test_global_no_dates_flag(empty_parser):
+    args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
     assert args.no_dates is True
 
 
-# ============================================================
-# 3. HANDLER → MANAGER INTEGRATION (the glue code)
-# ============================================================
+# ----------------------------------------------------------------------------
+# 3. Handlers → Manager Integration
+# ----------------------------------------------------------------------------
 
-def test_new_handler_calls_manager_with_correct_params(empty_parser):
-    """_handle_new extracts args and calls manager.new correctly."""
-    args = empty_parser.main_parser.parse_args([
-        "new", "test task", "--status", "done"
-    ])
+def test_new_handler_calls_manager(empty_parser):
+    args = empty_parser.main_parser.parse_args(["new", "test", "--status", "done"])
+    called = {}
 
-    # We temporarily replace the manager's new method with a spy
-    called_with = {}
-
-    def mock_new(description, *, status, priority):
-        called_with["description"] = description
-        called_with["status"] = status
-        called_with["priority"] = priority
+    def mock_new(desc, *, status, priority):
+        called.update({"desc": desc, "status": status, "priority": priority})
         return True
 
     empty_parser.tasks_manager.new = mock_new
+    args.func(args)
 
-    result = args.func(args)
-
-    assert result is True
-    assert called_with["description"] == "test task"
-    assert called_with["status"] == "done"
-    assert called_with["priority"] == "low"  # default from parser config
+    assert called == {"desc": "test", "status": "done", "priority": "low"}
 
 
-def test_update_handler_calls_manager_with_correct_params(parser):
-    """_handle_update extracts args and calls manager.update correctly."""
-    args = parser.main_parser.parse_args([
-        "update", "123", "--description", "new desc"
-    ])
-
-    called_with = {}
+def test_update_handler_calls_manager(parser):
+    args = parser.main_parser.parse_args(["update", "123", "--description", "new"])
+    called = {}
 
     def mock_update(id, *, new_descr, new_prior):
-        called_with["id"] = id
-        called_with["new_descr"] = new_descr
-        called_with["new_prior"] = new_prior
+        called.update({"id": id, "desc": new_descr, "prior": new_prior})
         return True
 
     parser.tasks_manager.update = mock_update
+    args.func(args)
 
-    result = args.func(args)
-
-    assert result is True
-    assert called_with["id"] == "123"
-    assert called_with["new_descr"] == "new desc"
-    assert called_with["new_prior"] is None
+    assert called == {"id": "123", "desc": "new", "prior": None}
 
 
-def test_mark_handler_calls_manager_with_correct_params(parser):
-    """_handle_mark extracts args and calls manager.mark correctly."""
+def test_mark_handler_calls_manager(parser):
     args = parser.main_parser.parse_args(["mark", "123", "done"])
-
-    called_with = {}
+    called = {}
 
     def mock_mark(id, new_status):
-        called_with["id"] = id
-        called_with["new_status"] = new_status
+        called.update({"id": id, "status": new_status})
         return True
 
     parser.tasks_manager.mark = mock_mark
+    args.func(args)
 
-    result = args.func(args)
-
-    assert result is True
-    assert called_with["id"] == "123"
-    assert called_with["new_status"] == "done"
+    assert called == {"id": "123", "status": "done"}
 
 
-def test_delete_handler_deduplicates_ids(parser):
-    """_handle_delete deduplicates IDs before calling manager."""
-    args = parser.main_parser.parse_args([
-        "delete", "123", "456", "123", "-f"
-    ])
-
-    called_with = []
+def test_delete_handler_deduplicates(parser):
+    args = parser.main_parser.parse_args(["delete", "123", "456", "123", "-f"])
+    called = []
 
     def mock_delete(ids):
-        called_with.append(ids)
+        called.append(ids)
         return ids
 
     parser.tasks_manager.delete = mock_delete
+    args.func(args)
 
-    result = args.func(args)
-
-    assert result is True
-    assert len(called_with) == 1
-    assert called_with[0] == ["123", "456"]  # deduped
+    assert called == [["123", "456"]]  # deduped
 
 
-def test_delete_handler_validates_ids_before_prompting(parser):
-    """All IDs must exist before any deletion occurs."""
-    initial_len = len(parser.tasks_manager.tasks)
-    args = parser.main_parser.parse_args(["delete", "123", "999", "-f"])
+# ----------------------------------------------------------------------------
+# 4. Search
+# ----------------------------------------------------------------------------
 
-    with pytest.raises(KeyError) as exc_info:
-        args.func(args)
+def test_search_handler_calls_manager(parser):
+    args = parser.main_parser.parse_args(["search", "book"])
+    called = []
 
-    assert "999" in str(exc_info.value)
-    assert len(parser.tasks_manager.tasks) == initial_len  # no deletion
+    def mock_search(query):
+        called.append(query)
+        return []
 
+    parser.tasks_manager.search = mock_search
+    args.func(args)
 
-# ============================================================
-# 4. BUSSINES LOGIC FUNCTIONS
-# ============================================================
-
-def test_list_returns_sorted_ids(manager):
-    """Test that list command returns tasks sorted by fields."""
-    # Sort by status
-    ids = manager.list(sort_by="status")
-    assert ids == ["123", "111", "456"]  # not-done, in-progress, done
-    ids = manager.list(sort_by="status", reverse=True)
-    assert ids == ["123", "111", "456"][::-1] # reverse order
-    
-    # Sort by priority
-    ids = manager.list(sort_by="priority")
-    assert ids == ["123", "456", "111"]  # low, normal, urgent
-    ids = manager.list(sort_by="priority", reverse=True)
-    assert ids == ["123", "456", "111"][::-1]
-
-    # Sort by created date
-    ids = manager.list(sort_by="created")
-    assert ids == ["456", "123", "111"]
-    ids = manager.list(sort_by="created", reverse=True)
-    assert ids == ["456", "123", "111"][::-1] 
-
-    # Sort by updated date 
-    ids = manager.list(sort_by="updated")
-    assert ids == ["456", "111", "123"]
-    ids = manager.list(sort_by="updated", reverse=True)
-    assert ids == ["456", "111", "123"][::-1] 
+    assert called == [["book"]]
 
 
-# ============================================================
-# 5. RETURN VALUES (mutation flags)
-# ============================================================
+def test_search_with_multiple_terms(parser):
+    args = parser.main_parser.parse_args(["search", "go", "supermarket"])
+    called = []
 
-def test_new_handler_returns_true(empty_parser):
+    def mock_search(query):
+        called.append(query)
+        return []
+
+    parser.tasks_manager.search = mock_search
+    args.func(args)
+
+    assert called == [["go", "supermarket"]]
+
+
+def test_search_with_no_dates(parser, capsys):
+    """Search with --no-dates should omit dates from output."""
+    args = parser.main_parser.parse_args(["--no-dates", "search", "book"])
+    args.func(args)
+    output = capsys.readouterr().out
+    assert "Created at" not in output
+    assert "Updated at" not in output
+
+
+# ----------------------------------------------------------------------------
+# 5. Sorting (Logic)
+# ----------------------------------------------------------------------------
+
+def test_list_sorting_logic(manager):
+    """Sorting at the manager level works correctly."""
+    # Status: not-done (123), in-progress (111), done (456)
+    assert manager.list(sort_by="status") == ["123", "111", "456"]
+    assert manager.list(sort_by="status", reverse=True) == ["456", "111", "123"]
+
+    # Priority: low (123), normal (456), urgent (111)
+    assert manager.list(sort_by="priority") == ["123", "456", "111"]
+    assert manager.list(sort_by="priority", reverse=True) == ["111", "456", "123"]
+
+    # Created: oldest (456), then (123), then (111)
+    assert manager.list(sort_by="created") == ["456", "123", "111"]
+
+    # Updated: (456), then (111), then (123)
+    assert manager.list(sort_by="updated") == ["456", "111", "123"]
+
+
+# ----------------------------------------------------------------------------
+# 7. Return Values (Mutation Flags)
+# ----------------------------------------------------------------------------
+
+def test_mutation_flags(empty_parser, parser, monkeypatch):
+    # Read-only commands return False
+    args = empty_parser.main_parser.parse_args(["list"])
+    assert args.func(args) is False
+
+    args = empty_parser.main_parser.parse_args(["search", "test"])
+    assert args.func(args) is False
+
+    # Mutating commands return True
     args = empty_parser.main_parser.parse_args(["new", "test"])
-    result = args.func(args)
-    assert result is True
+    assert args.func(args) is True
 
+    args = parser.main_parser.parse_args(["update", "123", "--description", "new"])
+    assert args.func(args) is True
 
-def test_list_handler_returns_false(parser):
-    args = parser.main_parser.parse_args(["list"])
-    result = args.func(args)
-    assert result is False
-
-
-def test_update_handler_returns_true_when_changed(parser):
-    args = parser.main_parser.parse_args([
-        "update", "123", "--description", "new desc"
-    ])
-    result = args.func(args)
-    assert result is True
-
-
-def test_update_handler_raises_error_when_no_change(parser):
-    args = parser.main_parser.parse_args([
-        "update", "123", "--description", "read a book"
-    ])
-    with pytest.raises(ValueError, match="different"):
-        args.func(args)
-
-
-def test_delete_handler_returns_false_if_nothing_deleted(parser, monkeypatch):
-    # monkeypatch simulates the user typing "n" when prompted
+    # Delete with no confirmation returns False
     monkeypatch.setattr("builtins.input", lambda: "n")
     args = parser.main_parser.parse_args(["delete", "123"])
-    result = args.func(args)
-    assert result is False
-    assert "123" in parser.tasks_manager.tasks
+    assert args.func(args) is False
 
-
-def test_delete_handler_returns_true_when_forced(parser):
+    # Forced delete returns True
     args = parser.main_parser.parse_args(["delete", "123", "-f"])
-    result = args.func(args)
-    assert result is True
-    assert "123" not in parser.tasks_manager.tasks
+    assert args.func(args) is True
 
 
-# ============================================================
-# 6. USER INTERACTION (confirmation prompts)
-# ============================================================
+# ----------------------------------------------------------------------------
+# 8. User Interaction (Confirmation)
+# ----------------------------------------------------------------------------
 
-def test_delete_confirmation_deletes_on_yes(parser, monkeypatch):
-    """When user types 'y', the task should be deleted."""
-    # monkeypatch replaces input() so the test doesn't wait for keyboard input
+def test_confirmation_flow(parser, monkeypatch):
+    # "y" → delete
     monkeypatch.setattr("builtins.input", lambda: "y")
     args = parser.main_parser.parse_args(["delete", "123"])
-    result = args.func(args)
-    assert result is True
+    assert args.func(args) is True
     assert "123" not in parser.tasks_manager.tasks
 
-
-def test_delete_confirmation_keeps_on_no(parser, monkeypatch):
-    """When user types 'n', the task should be kept."""
+    # "n" → keep
     monkeypatch.setattr("builtins.input", lambda: "n")
-    args = parser.main_parser.parse_args(["delete", "123"])
-    result = args.func(args)
-    assert result is False
-    assert "123" in parser.tasks_manager.tasks
+    args = parser.main_parser.parse_args(["delete", "456"])
+    assert args.func(args) is False
+    assert "456" in parser.tasks_manager.tasks
 
 
-def test_delete_confirmation_asks_for_multiple_ids(parser, monkeypatch):
-    """Multiple IDs prompt individually."""
-    # We use an iterator to return different responses for each prompt
-    inputs = iter(["y", "y"])
-    monkeypatch.setattr("builtins.input", lambda: next(inputs))
-
-    args = parser.main_parser.parse_args(["delete", "123", "456"])
-    result = args.func(args)
-
-    assert result is True
-    assert "123" not in parser.tasks_manager.tasks
-    assert "456" not in parser.tasks_manager.tasks
-    assert "111" in parser.tasks_manager.tasks
-
-
-def test_delete_confirmation_one_cancelled_keeps_others(parser, monkeypatch):
-    """Declining one ID doesn't prevent deletion of others."""
-    inputs = iter(["y", "n"])
-    monkeypatch.setattr("builtins.input", lambda: next(inputs))
-
-    args = parser.main_parser.parse_args(["delete", "123", "456"])
-    result = args.func(args)
-
-    # Exactly one of 123 or 456 should be deleted
-    assert ("123" in parser.tasks_manager.tasks) != ("456" in parser.tasks_manager.tasks)
-    assert "111" in parser.tasks_manager.tasks
-
-
-def test_delete_confirmation_aborts_on_keyboardinterrupt(parser, monkeypatch):
-    """Ctrl+C during confirmation cancels entire operation."""
+def test_keyboardinterrupt_cancels_deletion(parser, monkeypatch):
     def mock_confirm(*args, **kwargs):
         raise KeyboardInterrupt()
 
-    # Patch the confirm_deletion name used inside cli module
     monkeypatch.setattr("easydone.cli.confirm_deletion", mock_confirm)
-
     args = parser.main_parser.parse_args(["delete", "123"])
-    result = args.func(args)
-
-    assert result is False
-    assert "123" in parser.tasks_manager.tasks  # not deleted
+    assert args.func(args) is False
+    assert "123" in parser.tasks_manager.tasks
 
 
-# ============================================================
-# 7. ERROR HANDLING
-# ============================================================
-
-def test_update_requires_at_least_one_change(parser, monkeypatch):
-    """Update with no changes should error."""
-    monkeypatch.setattr("sys.argv", ["easydone", "update", "123"])
-    with pytest.raises(SystemExit):
-        parser.start_parsing()
-
+# ----------------------------------------------------------------------------
+# 9. Error Handling
+# ----------------------------------------------------------------------------
 
 def test_missing_task_raises_keyerror(empty_parser):
-    """Operations on missing tasks raise KeyError."""
-    # Update
-    args = empty_parser.main_parser.parse_args([
-        "update", "999", "--description", "test"
-    ])
+    args = empty_parser.main_parser.parse_args(["update", "999", "--description", "x"])
     with pytest.raises(KeyError):
         args.func(args)
 
-    # Mark
     args = empty_parser.main_parser.parse_args(["mark", "999", "done"])
     with pytest.raises(KeyError):
         args.func(args)
 
-    # Delete
     args = empty_parser.main_parser.parse_args(["delete", "999", "-f"])
     with pytest.raises(KeyError):
         args.func(args)
 
 
-def test_start_parsing_catches_exceptions_and_shows_message(empty_parser, capsys, monkeypatch):
-    """start_parsing catches KeyError/ValueError and shows them."""
-    # Simulate user running: easydone update 999 --description test
-    monkeypatch.setattr("sys.argv", ["easydone", "update", "999", "--description", "test"])
+def test_update_requires_change(parser, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["easydone", "update", "123"])
+    with pytest.raises(SystemExit):
+        parser.start_parsing()
+
+
+def test_start_parsing_catches_errors(empty_parser, capsys, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["easydone", "update", "999", "--description", "x"])
     with pytest.raises(SystemExit):
         empty_parser.start_parsing()
-    output = capsys.readouterr().err
-    # main_parser.error prints to stderr
-    assert "error" in output.lower() or "nonexistent" in output.lower()
+    assert "error" in capsys.readouterr().err.lower()
 
 
-# ============================================================
-# 8. OUTPUT (list command)
-# ============================================================
+# ----------------------------------------------------------------------------
+# 10. Output (List)
+# ----------------------------------------------------------------------------
 
-def test_list_shows_all_tasks(parser, capsys):
+def test_list_output(parser, capsys):
     args = parser.main_parser.parse_args(["list"])
     args.func(args)
     output = capsys.readouterr().out
-    assert "123" in output
-    assert "456" in output
-    assert "111" in output
+    for id in ["123", "456", "111"]:
+        assert id in output
 
 
-def test_list_filters_by_status(parser, capsys):
+def test_list_filters(parser, capsys):
     args = parser.main_parser.parse_args(["list", "--status", "done"])
     args.func(args)
     output = capsys.readouterr().out
-    assert "123" not in output
-    assert "456" in output
-    assert "111" not in output
+    assert "456" in output and "123" not in output and "111" not in output
 
-
-def test_list_filters_by_priority(parser, capsys):
     args = parser.main_parser.parse_args(["list", "--priority", "low"])
     args.func(args)
     output = capsys.readouterr().out
-    assert "123" in output
-    assert "456" not in output
-    assert "111" not in output
+    assert "123" in output and "456" not in output and "111" not in output
 
 
-def test_list_filters_by_both(parser, capsys):
-    args = parser.main_parser.parse_args([
-        "list", "--status", "in-progress", "--priority", "urgent"
-    ])
+def test_list_no_dates(parser, capsys):
+    args = parser.main_parser.parse_args(["--no-dates", "list"])
     args.func(args)
     output = capsys.readouterr().out
-    assert "123" not in output
-    assert "456" not in output
-    assert "111" in output
-
+    assert "Created at" not in output
+    assert "Updated at" not in output

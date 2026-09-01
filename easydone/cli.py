@@ -221,7 +221,7 @@ class Parser():
 
     def _handle_new(self, args: Namespace) -> bool:
         return self.tasks_manager.new(
-            description=args.description,
+            args.description,
             status=args.status,
             priority=args.priority
         )
