@@ -150,8 +150,8 @@ class Parser():
             "search", help="Search for tasks by description.")
         
         search_pars.add_argument(
-            "query", type=str, metavar='term',
-            help="Search term.")
+            "query", type=str, nargs='+', metavar='term',
+            help="Search terms.")
         
         search_pars.set_defaults(func=self._handle_search)
 

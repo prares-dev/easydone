@@ -140,14 +140,14 @@ class TasksManager():
             
         return filtered
     
-    def search(self, query: str) -> list[str]:
+    def search(self, query: list[str]) -> list[str]:
         """ Returns a list of ids whose description contains the given term. """
         if not self.tasks:
             return []
         
         matched = []
         for key, value in self.tasks.items():
-            if query.lower() in value['description'].lower():
+            if all(term.lower() in value['description'].lower() for term in query):
                 matched.append(key)
         
         return matched
