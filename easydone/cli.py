@@ -105,29 +105,37 @@ class Parser():
         # ====================
         list_pars = sub_pars.add_parser("list", help="List all tasks.")
         
-        list_pars.add_argument(
+        filt_group = list_pars.add_argument_group(
+            title="Filters", description="Optional filters to narrow down the list of tasks.")
+        
+        filt_group.add_argument(
             "-s", "--status", type=str, 
-            help="To list all tasks with a given status.",
+            help="Filter by status.",
             choices=SUPPORTED_STATUS, default=None)
 
-        list_pars.add_argument(
+        filt_group.add_argument(
             "-p", "--priority", type=str, 
-            help="To list all tasks with a given priority.",
+            help="Filter by priority.",
             choices=SUPPORTED_PRIORITIES, default=None)
-
-        list_pars.add_argument(
-            "--no-dates", action="store_true",
-            help="Not ouput dates.",)
         
-        # New sorting arguments
-        list_pars.add_argument(
+        sort_group = list_pars.add_argument_group(
+            title="Sorting", description="Optional sorting options.")
+        
+        sort_group.add_argument(
             "--sort", type=str,
-            help="Sort tasks by field (priority, status, created, updated).",
+            help="Sort tasks by field.",
             choices=["priority", "status", "created", "updated"])
 
-        list_pars.add_argument(
+        sort_group.add_argument(
             "-r", "--reverse", action="store_true",
             help="Reverse the sort order (only meaningful with --sort)")
+        
+        output_group = list_pars.add_argument_group(     
+            title="Output", description="Output customizing options.")
+        
+        output_group.add_argument(
+            "--no-dates", action="store_true",
+            help="Not output dates.",)
         
         list_pars.set_defaults(func=self._handle_list)
 
