@@ -57,7 +57,6 @@ def _print(text: str, style: Optional[str] = None) -> None:
     else:
         print(text)
 
-
 def _render_parts(parts: List[MyText]) -> None:
     """Render multiple styled text parts.
 
@@ -92,16 +91,18 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
         prior = task.get('priority', 'unknown')
         stat = task.get('status', 'unknown')
         create = task.get('created-at', 'unknown')
-        update = task.get('updated-at')
+        due = task.get('updated-at', 'unknown')
+        due = '-' if due is None else due
+        update = task.get('updated-at', 'unknown')
         update = '-' if update is None else update
 
         print(f"┌─ ID: {task_id} ... \"{desc}\"")
         print(f"│  ├── Priority: {prior}")
         print(f"│  {'├──' if not no_dates else '└──'} Status: {stat}")
         if not no_dates:
+            print(f"│  ├── Due: {due}")
             print(f"│  ├── Created at: {create}")
             print(f"│  └── Updated at: {update}")
-
 
 def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Rich table renderer."""
@@ -111,6 +112,7 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     table.add_column("Priority", no_wrap=True)
     table.add_column("Status", no_wrap=True)
     if not no_dates:
+        table.add_column("Due", no_wrap=True)
         table.add_column("Created", no_wrap=True)
         table.add_column("Updated", no_wrap=True)
 
@@ -134,6 +136,8 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
 
         if not no_dates:
             create = task.get('created-at', 'unknown')
+            due = task.get('due', 'unknown')
+            due = '-' if due is None else due
             update = task.get('updated-at', 'unknown')
             update = '-' if update is None else update
             table.add_row(
@@ -141,6 +145,7 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
                 Text(desc, overflow='ellipsis'), # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
+                due,
                 create,
                 update,
             )

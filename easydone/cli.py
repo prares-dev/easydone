@@ -54,6 +54,11 @@ class Parser():
             help="Optional priority: defaults to 'low'.",
             choices=SUPPORTED_PRIORITIES, default=SUPPORTED_PRIORITIES[0])
         
+        # optional flag for indicating due date
+        new_pars.add_argument(
+            "-dd", "--due-date", type=str, 
+            help="Optional due date.")
+        
         # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
         new_pars.set_defaults(func=self._handle_new)
         
@@ -74,6 +79,10 @@ class Parser():
             "-p", "--priority", metavar="new-priority",
             type=str, help="Update priority.", 
             choices=SUPPORTED_PRIORITIES)
+        
+        update_pars.add_argument(
+            "-dd", "--due-date", metavar="new-due-date",
+            type=str, help="Update due date.")
 
         update_pars.set_defaults(func=self._handle_update)
         
@@ -126,6 +135,10 @@ class Parser():
             help="Filter by priority.",
             choices=SUPPORTED_PRIORITIES, default=None)
         
+        filt_group.add_argument(
+            "-o", "--overdue", action="store_true" ,
+            help="Filt by overdue tasks.",)
+        
         sort_group = list_pars.add_argument_group(
             title="Sorting", description="Optional sorting options.")
         
@@ -172,6 +185,30 @@ class Parser():
             except (KeyError, ValueError) as exc:
                 self.main_parser.error(str(exc))
 
+    def _handle_new(self, args: Namespace) -> bool:
+        return self.tasks_manager.new(
+            args.description,
+            status=args.status,
+            priority=args.priority,
+            due_date=args.due_date
+        )
+    
+    def _handle_update(self, args: Namespace) -> bool:
+        has_update_target = args.description or args.priority or args.due_date
+        if not has_update_target:
+            self.main_parser.error("the update command requires at least one field change: --description, --priority or --due-date")
+        return self.tasks_manager.update(
+                args.id, 
+                new_descr=args.description, 
+                new_prior=args.priority,
+                new_due=args.due_date
+        )
+    
+    def _handle_mark(self, args: Namespace) -> bool:
+        return self.tasks_manager.mark(
+            id=args.id, new_status=args.new_status
+        )
+    
     def _handle_delete(self, args: Namespace) -> bool:
         unique_ids = list(dict.fromkeys(args.ids))  # dedupe, preserve order
 
@@ -197,7 +234,8 @@ class Parser():
         ids = self.tasks_manager.list(
             filt_status=args.status, 
             filt_priority=args.priority,
-            sort_by = args.sort, 
+            filt_overdue=args.overdue,
+            sort_by=args.sort, 
             reverse=args.reverse
             )
         print_table(
@@ -205,28 +243,6 @@ class Parser():
             ids, no_dates=args.no_dates
             )
         return False
-
-    def _handle_update(self, args: Namespace) -> bool:
-        has_update_target = args.description or args.priority
-        if not has_update_target:
-            self.main_parser.error("the update command requires at least one field change: --description or --priority")
-        return self.tasks_manager.update(
-                args.id, 
-                new_descr=args.description, 
-                new_prior=args.priority
-                )
-
-    def _handle_new(self, args: Namespace) -> bool:
-        return self.tasks_manager.new(
-            args.description,
-            status=args.status,
-            priority=args.priority
-        )
-
-    def _handle_mark(self, args: Namespace) -> bool:
-        return self.tasks_manager.mark(
-            id=args.id, new_status=args.new_status
-        )
     
     def _handle_search(self, args: Namespace) -> bool:
         matched = self.tasks_manager.search(args.query)
