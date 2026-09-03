@@ -162,7 +162,7 @@ def test_print_table_uses_rich_when_available(monkeypatch):
     assert row[1].text == "read a book"
     assert row[2].text == "urgent"
     assert row[3].text == "done"
-    assert row[4] == "2026-08-30"
+    assert row[4].text == "2026-08-30"
     assert row[5] == "2026-08-22"
     assert row[6] == "2026-08-23"
 
