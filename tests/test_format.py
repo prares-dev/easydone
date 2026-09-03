@@ -3,7 +3,6 @@ import importlib
 import sys
 import types
 import pytest
-from pathlib import Path
 
 from easydone import __version__
 from easydone.storage import LoadStatus, CURRENT_SCHEMA_VERSION, LoadingResult
@@ -70,7 +69,6 @@ def _reload_format_module(monkeypatch, *, rich_available):
     sys.modules.pop("easydone.format", None)
     return importlib.import_module("easydone.format")
 
-
 # ================================================================
 # print_table tests
 # ================================================================
@@ -84,6 +82,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
             "description": "read a book",
             "status": "not-done",
             "priority": "low",
+            "due": "2026-08-30",
             "created-at": "2026-08-22",
             "updated-at": None,
         }
@@ -98,6 +97,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     assert "ID: 123 ... \"read a book\"" in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
+    assert "Due: 2026-08-30" in output
     assert "Created at: 2026-08-22" in output
     assert "Updated at: -" in output
 
@@ -110,11 +110,12 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     assert "ID: 123 ... \"read a book\"" in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
+    assert "Due" not in output
     assert "Created at" not in output
     assert "Updated at" not in output
 
 
-def test_print_table_shows_no_tasks_message(monkeypatch, capsys):
+def test_print_table_shows_no_tasks_message_plain_text(monkeypatch, capsys):
     """When there are no tasks to show, print a simple message."""
     format_module = _reload_format_module(monkeypatch, rich_available=False)
 
@@ -139,6 +140,7 @@ def test_print_table_uses_rich_when_available(monkeypatch):
             "description": "read a book",
             "status": "done",
             "priority": "urgent",
+            "due": "2026-08-30",
             "created-at": "2026-08-22",
             "updated-at": "2026-08-23",
         }
@@ -153,15 +155,16 @@ def test_print_table_uses_rich_when_available(monkeypatch):
     assert len(console.rendered) == 1
 
     table = console.rendered[0]
-    assert table.columns == ["ID", "Description", "Priority", "Status", "Created", "Updated"]
+    assert table.columns == ["ID", "Description", "Priority", "Status", "Due", "Created", "Updated"]
     assert len(table.rows) == 1
     row = table.rows[0]
     assert row[0] == "123"
     assert row[1].text == "read a book"
     assert row[2].text == "urgent"
     assert row[3].text == "done"
-    assert row[4] == "2026-08-22"
-    assert row[5] == "2026-08-23"
+    assert row[4] == "2026-08-30"
+    assert row[5] == "2026-08-22"
+    assert row[6] == "2026-08-23"
 
 
 def test_print_table_uses_rich_with_no_dates(monkeypatch):

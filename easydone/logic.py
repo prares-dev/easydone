@@ -30,7 +30,7 @@ class TasksManager():
         elif priority not in SUPPORTED_PRIORITIES:
             raise ValueError(f"Attempting to create new task with invalid priority: {priority}")
         elif due_date and not self._valid_date(due_date):
-            raise ValueError(f"Invalid due date {due_date}, please use format YYYY-MM-DD")
+            raise ValueError(f"Invalid due date ({due_date}), please use format YYYY-MM-DD")
 
         id = self._task_id()
         self.tasks[id] = {

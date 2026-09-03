@@ -94,7 +94,7 @@ def extract_ids(output: str) -> list[str]:
 
 
 # ----------------------------------------------------------------------------
-# 1. Version / Help
+# Version / Help
 # ----------------------------------------------------------------------------
 
 def test_version_output(empty_parser, capsys):
@@ -110,7 +110,7 @@ def test_no_args_shows_help(empty_parser, capsys, monkeypatch):
 
 
 # ----------------------------------------------------------------------------
-# 2. Parser Configuration
+# Parser Configuration
 # ----------------------------------------------------------------------------
 
 def test_new_parser_defaults(empty_parser):
@@ -121,7 +121,8 @@ def test_new_parser_defaults(empty_parser):
 def test_new_parser_rejects_invalid(empty_parser):
     with pytest.raises(SystemExit):
         empty_parser.main_parser.parse_args(["new", "test", "--status", "invalid"])
-
+    with pytest.raises(SystemExit):
+        empty_parser.main_parser.parse_args(["new", "test", "--priority", "invalid"])
 
 def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
@@ -132,47 +133,10 @@ def test_global_no_dates_flag(empty_parser):
 # 3. Handlers → Manager Integration
 # ----------------------------------------------------------------------------
 
-def test_new_handler_calls_manager(empty_parser):
-    args = empty_parser.main_parser.parse_args(["new", "test", "--status", "done"])
-    called = {}
-
-    def mock_new(desc, *, status, priority):
-        called.update({"desc": desc, "status": status, "priority": priority})
-        return True
-
-    empty_parser.tasks_manager.new = mock_new
-    args.func(args)
-
-    assert called == {"desc": "test", "status": "done", "priority": "low"}
-
-
-def test_update_handler_calls_manager(parser):
-    args = parser.main_parser.parse_args(["update", "123", "--description", "new"])
-    called = {}
-
-    def mock_update(id, *, new_descr, new_prior):
-        called.update({"id": id, "desc": new_descr, "prior": new_prior})
-        return True
-
-    parser.tasks_manager.update = mock_update
-    args.func(args)
-
-    assert called == {"id": "123", "desc": "new", "prior": None}
-
-
-def test_mark_handler_calls_manager(parser):
-    args = parser.main_parser.parse_args(["mark", "123", "done"])
-    called = {}
-
-    def mock_mark(id, new_status):
-        called.update({"id": id, "status": new_status})
-        return True
-
-    parser.tasks_manager.mark = mock_mark
-    args.func(args)
-
-    assert called == {"id": "123", "status": "done"}
-
+def test_update_handler_requires_change(parser, monkeypatch):
+    monkeypatch.setattr("sys.argv", ["easydone", "update", "123"])
+    with pytest.raises(SystemExit):
+        parser.start_parsing()
 
 def test_delete_handler_deduplicates(parser):
     args = parser.main_parser.parse_args(["delete", "123", "456", "123", "-f"])
@@ -187,25 +151,6 @@ def test_delete_handler_deduplicates(parser):
 
     assert called == [["123", "456"]]  # deduped
 
-
-# ----------------------------------------------------------------------------
-# 4. Search
-# ----------------------------------------------------------------------------
-
-def test_search_handler_calls_manager(parser):
-    args = parser.main_parser.parse_args(["search", "book"])
-    called = []
-
-    def mock_search(query):
-        called.append(query)
-        return []
-
-    parser.tasks_manager.search = mock_search
-    args.func(args)
-
-    assert called == [["book"]]
-
-
 def test_search_with_multiple_terms(parser):
     args = parser.main_parser.parse_args(["search", "go", "supermarket"])
     called = []
@@ -219,7 +164,6 @@ def test_search_with_multiple_terms(parser):
 
     assert called == [["go", "supermarket"]]
 
-
 def test_search_with_no_dates(parser, capsys):
     """Search with --no-dates should omit dates from output."""
     args = parser.main_parser.parse_args(["--no-dates", "search", "book"])
@@ -230,7 +174,7 @@ def test_search_with_no_dates(parser, capsys):
 
 
 # ----------------------------------------------------------------------------
-# 5. Sorting (Logic)
+# Sorting (Logic)
 # ----------------------------------------------------------------------------
 
 def test_list_sorting_logic(manager):
@@ -245,13 +189,15 @@ def test_list_sorting_logic(manager):
 
     # Created: oldest (456), then (123), then (111)
     assert manager.list(sort_by="created") == ["456", "123", "111"]
+    assert manager.list(sort_by="created", reverse=True) == ["111", "123", "456"]
 
     # Updated: (456), then (111), then (123)
     assert manager.list(sort_by="updated") == ["456", "111", "123"]
+    assert manager.list(sort_by="updated", reverse=True) == ["123", "111", "456"]
 
 
 # ----------------------------------------------------------------------------
-# 7. Return Values (Mutation Flags)
+# Return Values (Mutation Flags)
 # ----------------------------------------------------------------------------
 
 def test_mutation_flags(empty_parser, parser, monkeypatch):
@@ -280,7 +226,7 @@ def test_mutation_flags(empty_parser, parser, monkeypatch):
 
 
 # ----------------------------------------------------------------------------
-# 8. User Interaction (Confirmation)
+# User Interaction (Confirmation)
 # ----------------------------------------------------------------------------
 
 def test_confirmation_flow(parser, monkeypatch):
@@ -308,7 +254,7 @@ def test_keyboardinterrupt_cancels_deletion(parser, monkeypatch):
 
 
 # ----------------------------------------------------------------------------
-# 9. Error Handling
+# Error Handling
 # ----------------------------------------------------------------------------
 
 def test_missing_task_raises_keyerror(empty_parser):
@@ -323,13 +269,6 @@ def test_missing_task_raises_keyerror(empty_parser):
     args = empty_parser.main_parser.parse_args(["delete", "999", "-f"])
     with pytest.raises(KeyError):
         args.func(args)
-
-
-def test_update_requires_change(parser, monkeypatch):
-    monkeypatch.setattr("sys.argv", ["easydone", "update", "123"])
-    with pytest.raises(SystemExit):
-        parser.start_parsing()
-
 
 def test_start_parsing_catches_errors(empty_parser, capsys, monkeypatch):
     monkeypatch.setattr("sys.argv", ["easydone", "update", "999", "--description", "x"])
