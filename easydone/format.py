@@ -91,7 +91,7 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
         prior = task.get('priority', 'unknown')
         stat = task.get('status', 'unknown')
         create = task.get('created-at', 'unknown')
-        due = task.get('updated-at', 'unknown')
+        due = task.get('due', 'unknown')
         due = '-' if due is None else due
         update = task.get('updated-at', 'unknown')
         update = '-' if update is None else update
