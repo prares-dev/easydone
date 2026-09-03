@@ -1,6 +1,6 @@
 from re import fullmatch
 from random import randint
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional, Literal, Union
 
 SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
@@ -133,7 +133,7 @@ class TasksManager():
             if (filt_status is None or value['status'] == filt_status) and (filt_priority is None or value['priority'] == filt_priority):
                 due = value.get('due', '9999')
                 due = due if due else '9999'
-                if not filt_overdue or self.is_overdue(key):
+                if not filt_overdue or is_overdue(value):
                     filtered.append(key)
                 
         
@@ -171,19 +171,6 @@ class TasksManager():
         
         return matched
     
-    def is_overdue(self, task_id: str) -> bool:
-        """ Receives a task id and return a boolean indicating if it is overdue or not. """
-        if not isinstance(task_id, str):
-            raise TypeError()
-        elif task_id not in self.tasks:
-            raise KeyError(f"Nonexistent task ({task_id})")
-
-        # if the task doesn't have a 'due' attr or it's value is None:
-        # we use "9999" to make the comparison fail and return False
-        due = self.tasks[task_id].get('due') or "9999"
-        now = str(datetime.now())
-        return now > due
-    
     def _task_id(self) -> str:
         """ Returns a random id, formed by digits, the number of digits is determined by self.ID_SIZE"""
         id = None
@@ -197,3 +184,26 @@ class TasksManager():
         """ Validates a given str representing a date in the format YYYY-MM-DD"""
         pattern = r'\d{4}-\d{2}-\d{2}'
         return bool(fullmatch(pattern, date_str))
+
+def is_overdue(task: dict) -> bool:
+    """ Returns True | False whether the given task is overdue or not. """
+    if not isinstance(task, dict):
+        raise TypeError()
+    
+    time = time_to_due(task)
+    return time is not None and time.total_seconds() < 0
+
+def time_to_due(task: dict) -> Optional[timedelta]:
+    """ Receives a task id and return a boolean indicating if it is overdue or not. """
+    if not isinstance(task, dict):
+        raise TypeError()
+    
+    due = task.get('due')
+    if due is None:
+        return
+    
+    # convert str to datetime object
+    year, month, day = due.split('-')
+    due_date = datetime(int(year), int(month), int(day))
+    
+    return due_date - datetime.now()
