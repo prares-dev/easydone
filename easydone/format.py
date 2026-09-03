@@ -5,6 +5,7 @@ It uses Rich when available, otherwise falls back to plain text.
 """
 
 from typing import Dict, List, Any, Optional, TypedDict
+from .logic import time_to_due
 
 from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
 from . import __version__
@@ -87,13 +88,13 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
     print("└────────────────────────┘")
     for task_id in ids:
         task = tasks[task_id]
-        desc = task.get('description', 'unknown')
-        prior = task.get('priority', 'unknown')
-        stat = task.get('status', 'unknown')
-        create = task.get('created-at', 'unknown')
-        due = task.get('due', 'unknown')
+        desc = task.get('description', '-')
+        prior = task.get('priority', '-')
+        stat = task.get('status', '-')
+        create = task.get('created-at', '-')
+        due = task.get('due', '-')
         due = '-' if due is None else due
-        update = task.get('updated-at', 'unknown')
+        update = task.get('updated-at', '-')
         update = '-' if update is None else update
 
         print(f"┌─ ID: {task_id} ... \"{desc}\"")
@@ -118,7 +119,7 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
 
     priority_styles = {
         "low": "dim",
-        "normal": "",
+        "normal": "blue",
         "high": "bold yellow",
         "urgent": "bold red",
     }
@@ -127,25 +128,37 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         "in-progress": "cyan",
         "done": "green",
     }
+    
+    def due_style(task: dict) -> str:
+        time = time_to_due(task)
+        if not time:
+            return ''
+        
+        if time.total_seconds() < 0:
+            return "bold red"
+        elif time.days < 5:
+            return "yellow"
+        else:
+            return 'green'
 
     for task_id in ids:
         task = tasks[task_id]
-        desc = task.get('description', 'unknown')
-        prior = task.get('priority', 'unknown')
-        stat = task.get('status', 'unknown')
+        desc = task.get('description', '-')
+        prior = task.get('priority', '-')
+        stat = task.get('status', '-')
 
         if not no_dates:
-            create = task.get('created-at', 'unknown')
-            due = task.get('due', 'unknown')
+            create = task.get('created-at', '-')
+            due = task.get('due', '-')
             due = '-' if due is None else due
-            update = task.get('updated-at', 'unknown')
+            update = task.get('updated-at', '-')
             update = '-' if update is None else update
             table.add_row(
                 task_id,
                 Text(desc, overflow='ellipsis'), # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
-                due,
+                Text(due, style=due_style(task)),   # type: ignore
                 create,
                 update,
             )
