@@ -145,7 +145,7 @@ class Parser():
         sort_group.add_argument(
             "--sort", type=str,
             help="Sort tasks by field.",
-            choices=["priority", "status", "created", "updated"])
+            choices=["priority", "status", "due", "created", "updated"])
 
         sort_group.add_argument(
             "-r", "--reverse", action="store_true",

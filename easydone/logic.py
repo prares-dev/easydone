@@ -143,10 +143,14 @@ class TasksManager():
         
             elif sort_by == "priority":
                 return PRIORITY_ORDER[self.tasks[task_id]['priority']]
-        
+
+            elif sort_by == "due":
+                due = self.tasks[task_id].get('due')
+                return due if due is not None else '9000-01-01'
+            
             elif sort_by == "created":
                 return self.tasks[task_id].get('created-at', '0')
-
+            
             elif sort_by == "updated":
                 updated = self.tasks[task_id].get('updated-at')
                 return updated if updated is not None else '9000-01-01'
