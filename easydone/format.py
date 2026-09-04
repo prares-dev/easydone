@@ -5,8 +5,8 @@ It uses Rich when available, otherwise falls back to plain text.
 """
 
 from typing import Dict, List, Any, Optional, TypedDict
-from .logic import time_to_due
 
+from .logic import time_to_due
 from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
 from . import __version__
 
@@ -107,24 +107,24 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
 
 def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Rich table renderer."""
-    table = Table(show_header=True, header_style="bold magenta") # type: ignore
-    table.add_column("ID", style="dim", no_wrap=True, justify="center")
-    table.add_column("Description")
-    table.add_column("Priority", no_wrap=True)
+    table = Table(show_header=True, header_style="bold white") # type: ignore
+    table.add_column("ID", header_style = "gold1", style="gold1", no_wrap=True, justify="center")
+    table.add_column("Description", header_style=" white", style="italic white")
+    table.add_column("Priority", no_wrap=True, justify="center")
     table.add_column("Status", no_wrap=True, justify="center")
     if not no_dates:
         table.add_column("Due", no_wrap=True, justify="center")
-        table.add_column("Created", no_wrap=True, justify="center")
-        table.add_column("Updated", no_wrap=True, justify="center")
+        table.add_column(":date:Created", no_wrap=True, justify="center")
+        table.add_column(":pencil:Updated", no_wrap=True, justify="center")
 
     priority_styles = {
         "low": "dim",
-        "normal": "blue",
+        "normal": "",
         "high": "bold yellow",
         "urgent": "bold red",
     }
     status_styles = {
-        "not-done": "yellow",
+        "not-done": "dim",
         "in-progress": "cyan",
         "done": "green",
     }
@@ -137,9 +137,9 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         if time.total_seconds() < 0:
             return "bold red"
         elif time.days < 5:
-            return "yellow"
+            return "bright_yellow"
         else:
-            return 'green'
+            return 'dim'
 
     for task_id in ids:
         task = tasks[task_id]
