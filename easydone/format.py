@@ -108,14 +108,14 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
 def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Rich table renderer."""
     table = Table(show_header=True, header_style="bold magenta") # type: ignore
-    table.add_column("ID", style="dim", no_wrap=True)
+    table.add_column("ID", style="dim", no_wrap=True, justify="center")
     table.add_column("Description")
     table.add_column("Priority", no_wrap=True)
-    table.add_column("Status", no_wrap=True)
+    table.add_column("Status", no_wrap=True, justify="center")
     if not no_dates:
-        table.add_column("Due", no_wrap=True)
-        table.add_column("Created", no_wrap=True)
-        table.add_column("Updated", no_wrap=True)
+        table.add_column("Due", no_wrap=True, justify="center")
+        table.add_column("Created", no_wrap=True, justify="center")
+        table.add_column("Updated", no_wrap=True, justify="center")
 
     priority_styles = {
         "low": "dim",
