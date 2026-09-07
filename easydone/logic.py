@@ -1,5 +1,6 @@
 from random import randint
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
+from re import fullmatch
 from typing import Optional, Literal
 
 SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
@@ -10,6 +11,37 @@ STATUS_ORDER = {status: int(i)
 
 PRIORITY_ORDER = {  prior: int(i) 
                     for i, prior in enumerate(SUPPORTED_PRIORITIES)}
+
+def normalize_due_date(value: Optional[str], today: Optional[date] = None) -> Optional[str]:
+    """Convert a due-date keyword or date into canonical YYYY-MM-DD form."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError("Due date must be a date, Tomorrow, +/-N, or Clear")
+
+    normalized = value.strip()
+    if normalized.casefold() == "clear":
+        return None
+
+    base_date = today or date.today()
+    if normalized.casefold() == "tomorrow":
+        return (base_date + timedelta(days=1)).isoformat()
+
+    relative_match = fullmatch(r"[+-]\d+", normalized)
+    if relative_match:
+        return (base_date + timedelta(days=int(normalized))).isoformat()
+
+    try:
+        parsed = datetime.strptime(normalized, "%Y-%m-%d")
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid due date ({value}); use YYYY-MM-DD, Tomorrow, +/-N, or Clear"
+        ) from exc
+    if parsed.strftime("%Y-%m-%d") != normalized:
+        raise ValueError(
+            f"Invalid due date ({value}); use YYYY-MM-DD, Tomorrow, +/-N, or Clear"
+        )
+    return normalized
 
 
 class TasksManager():
@@ -28,8 +60,9 @@ class TasksManager():
             raise ValueError(f"Attempting to create new task with invalid status: {status}")
         elif priority not in SUPPORTED_PRIORITIES:
             raise ValueError(f"Attempting to create new task with invalid priority: {priority}")
-        elif due_date and not self._valid_date(due_date):
-            raise ValueError(f"Invalid due date ({due_date}), please use format YYYY-MM-DD")
+        elif isinstance(due_date, str) and due_date.strip().casefold() == "clear":
+            raise ValueError("Clear can only be used when updating an existing task")
+        due_date = normalize_due_date(due_date)
 
         id = self._task_id()
         self.tasks[id] = {
@@ -60,9 +93,8 @@ class TasksManager():
                 raise ValueError("New priority must be different from the current one.")
             
         if new_due is not None:
-            if not self._valid_date(new_due):
-                raise ValueError(f"Attempting to update task: {id} with invalid due date {new_due}, please use format YYYY-MM-DD")
-            elif new_due == task.get('due'):
+            normalized_due = normalize_due_date(new_due)
+            if normalized_due == task.get('due'):
                 raise ValueError("New due date must be different from the current one.")
             
         if new_descr is not None and new_descr == task['description']:
@@ -77,8 +109,8 @@ class TasksManager():
             task['priority'] = new_prior
             updated = True
 
-        if new_due:
-            task['due'] = new_due
+        if new_due is not None:
+            task['due'] = normalized_due    # type: ignore
             updated = True
 
         if updated:
@@ -185,10 +217,8 @@ class TasksManager():
     
     def _valid_date(self, date_str: str) -> bool:
         """ Validates a given str representing a date in the format YYYY-MM-DD"""
-        if not isinstance(date_str, str):
-            return False
         try:
-            datetime.strptime(date_str, "%Y-%m-%d")
+            normalize_due_date(date_str)
         except ValueError:
             return False
         return True
