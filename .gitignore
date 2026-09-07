@@ -3,6 +3,7 @@
 .vscode/
 *.code-workspace
 scripts/
+.github/
 
 # Python-generated files
 __pycache__/
