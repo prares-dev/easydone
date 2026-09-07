@@ -92,7 +92,7 @@ easydone delete 123 456 789 -f
 | Command | Description |
 | :------ | :---------- |
 | `easydone new DESCRIPTION [--status STATUS] [--priority PRIORITY] [--due-date DATE]` | Create a task. Due dates accept `YYYY-MM-DD`, `Tomorrow`, `+N`, or `-N`. |
-| `easydone update TASK_ID [--description NEW] [--priority NEW] [--due-date DATE]` | Change description, priority, and/or due date. Use `Clear` to remove a due date. |
+| `easydone update TASK_ID [--description NEW] [--priority NEW] [--due-date DATE] [--add-tag TAG ...] [--remove-tag TAG ...]` | Change task fields and add or remove tags. Use `Clear` to remove a due date. |
 | `easydone mark TASK_ID new-status` | Set status to `not-done`, `in-progress`, or `done`. |
 | `easydone delete TASK_ID [TASK_ID ...] [-f]` | Delete one or more tasks. Use `-f` to skip confirmation. |
 | `easydone list [--status STATUS] [--priority PRIORITY] [--no-dates]` | Show tasks. Apply filters and hide dates if you like. |

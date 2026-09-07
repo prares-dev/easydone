@@ -59,6 +59,11 @@ class Parser():
             "-dd", "--due-date", type=str, 
             help="Update due date (YYYY-MM-DD, Tomorrow, +/-N).")
         
+        # optional flag for setting initial tags
+        new_pars.add_argument(
+            "-t", "--tags", nargs="+", metavar="TAG",
+            help="Initial tags for the task.")
+        
         # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
         new_pars.set_defaults(func=self._handle_new)
         
@@ -83,6 +88,14 @@ class Parser():
         update_pars.add_argument(
             "-dd", "--due-date", metavar="new-due-date",
             help="Update due date (YYYY-MM-DD, Tomorrow, +/-N, or Clear to remove).")
+
+        update_pars.add_argument(
+            "--add-tag", nargs="+", metavar="TAG",
+            help="Add one or more tags.")
+
+        update_pars.add_argument(
+            "--remove-tag", nargs="+", metavar="TAG",
+            help="Remove one or more tags.")
 
         update_pars.set_defaults(func=self._handle_update)
         
@@ -190,7 +203,8 @@ class Parser():
             args.description,
             status=args.status,
             priority=args.priority,
-            due_date=args.due_date
+            due_date=args.due_date,
+            tags=args.tags
         )
     
     def _handle_update(self, args: Namespace) -> bool:
@@ -198,14 +212,21 @@ class Parser():
             args.description is not None
             or args.priority is not None
             or args.due_date is not None
+            or args.add_tag is not None
+            or args.remove_tag is not None
         )
         if not has_update_target:
-            self.main_parser.error("the update command requires at least one field change: --description, --priority or --due-date")
+            self.main_parser.error(
+                "the update command requires at least one field change: "
+                "--description, --priority, --due-date, --add-tag or --remove-tag"
+            )
         return self.tasks_manager.update(
                 args.id, 
                 new_descr=args.description, 
                 new_prior=args.priority,
-                new_due=args.due_date
+                new_due=args.due_date,
+                add_tags=args.add_tag,
+                remove_tags=args.remove_tag,
         )
     
     def _handle_mark(self, args: Namespace) -> bool:

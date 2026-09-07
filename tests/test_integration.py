@@ -118,6 +118,13 @@ def test_new_parser_defaults(empty_parser):
     assert args.status == "not-done" and args.priority == "low"
 
 
+def test_new_tasks_start_with_empty_tags(empty_manager):
+    empty_manager.new("test")
+
+    task = next(iter(empty_manager.tasks.values()))
+    assert task["tags"] == []
+
+
 def test_new_parser_rejects_invalid(empty_parser):
     with pytest.raises(SystemExit):
         empty_parser.main_parser.parse_args(["new", "test", "--status", "invalid"])
@@ -174,6 +181,57 @@ def test_update_without_due_date_does_not_change_due_date(manager):
 
     assert manager.update("123", new_descr="new description") is True
     assert manager.tasks["123"]["due"] == "2026-09-10"
+
+
+def test_update_adds_and_removes_tags(manager):
+    manager.tasks["123"]["tags"] = ["work"]
+
+    assert manager.update(
+        "123",
+        add_tags=["urgent", "work"],
+        remove_tags=["work"],
+    ) is True
+    assert manager.tasks["123"]["tags"] == ["urgent"]
+
+
+def test_update_tags_is_backward_compatible_for_legacy_tasks(manager):
+    manager.tasks["123"].pop("tags", None)
+
+    assert manager.update("123", add_tags=["work"]) is True
+    assert manager.tasks["123"]["tags"] == ["work"]
+
+
+def test_legacy_tasks_receive_empty_tags(manager):
+    manager.tasks["123"].pop("tags", None)
+
+    TasksManager(manager.tasks)
+
+    assert manager.tasks["123"]["tags"] == []
+
+
+def test_existing_tags_are_normalized_when_manager_is_created(manager):
+    manager.tasks["123"]["tags"] = [" work ", "work", "urgent"]
+
+    TasksManager(manager.tasks)
+
+    assert manager.tasks["123"]["tags"] == ["work", "urgent"]
+
+
+def test_update_ignores_redundant_tag_changes(manager):
+    manager.tasks["123"]["tags"] = ["work"]
+
+    assert manager.update("123", add_tags=["work"]) is False
+    assert manager.update("123", remove_tags=["missing"]) is False
+
+
+def test_update_parser_accepts_multiple_tag_options(parser):
+    args = parser.main_parser.parse_args([
+        "update", "123", "--add-tag", "work", "urgent",
+        "--remove-tag", "old",
+    ])
+
+    assert args.add_tag == ["work", "urgent"]
+    assert args.remove_tag == ["old"]
 
 def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])

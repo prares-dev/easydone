@@ -49,13 +49,18 @@ class TasksManager():
     def __init__(self, tasks_from_file: dict[str, dict]):
         self.tasks = tasks_from_file
         self.ID_SIZE = 3
+        for task in self.tasks.values():
+            if isinstance(task, dict):
+                task["tags"] = self._normalize_tags(task.get("tags", []))
 
     def new(self, description: str, *,
             status: str = 'not-done',
             priority: str = 'low',
-            due_date: Optional[str] = None
+            due_date: Optional[str] = None,
+            tags: Optional[list[str]] = None
             ) -> Literal[True]:
         """ Create a new task. """
+        
         if status not in SUPPORTED_STATUS:
             raise ValueError(f"Attempting to create new task with invalid status: {status}")
         elif priority not in SUPPORTED_PRIORITIES:
@@ -70,6 +75,7 @@ class TasksManager():
             "status": status,
             "priority": priority,
             "due": due_date,
+            "tags": self._normalize_tags(tags or []),
             "created-at": str(datetime.now()).split(" ")[0],
             "updated-at": None
         }
@@ -79,8 +85,11 @@ class TasksManager():
                 new_descr: Optional[str] = None,
                 new_prior: Optional[str] = None,
                 new_due: Optional[str] = None,
+                add_tags: Optional[list[str]] = None,
+                remove_tags: Optional[list[str]] = None,
                 ) -> bool:
         """ Updates a task. """
+        
         if id not in self.tasks:
             raise KeyError(f"Nonexistent task ({id})")
         else: 
@@ -100,6 +109,15 @@ class TasksManager():
         if new_descr is not None and new_descr == task['description']:
             raise ValueError("New description must be different from the current on.")
 
+        tags = task.get("tags", [])
+        normalized_add_tags = self._normalize_tags(add_tags or [])
+        normalized_remove_tags = self._normalize_tags(remove_tags or [])
+        updated_tags = list(dict.fromkeys(tags + normalized_add_tags))
+        updated_tags = [
+            tag for tag in updated_tags if tag not in normalized_remove_tags
+        ]
+        tags_changed = updated_tags != tags
+
         updated = False
         if new_descr is not None:
             task['description'] = new_descr
@@ -113,10 +131,27 @@ class TasksManager():
             task['due'] = normalized_due    # type: ignore
             updated = True
 
+        if tags_changed:
+            task["tags"] = updated_tags
+            updated = True
+
         if updated:
             task['updated-at'] = str(datetime.now()).split(" ")[0]
 
         return updated
+
+    @staticmethod
+    def _normalize_tags(tags: list[str]) -> list[str]:
+        if not isinstance(tags, list):
+            raise ValueError("Tags must be a list of non-empty strings")
+        normalized = []
+        for tag in tags:
+            if not isinstance(tag, str) or not tag.strip():
+                raise ValueError("Tags must be non-empty strings")
+            clean_tag = tag.strip()
+            if clean_tag not in normalized:
+                normalized.append(clean_tag)
+        return normalized
 
     def mark(self, id: str, new_status: str) -> bool:
         """Marking task as done, not done or in progress"""
