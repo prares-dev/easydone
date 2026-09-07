@@ -5,7 +5,8 @@ import shutil
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Optional, NamedTuple, Any
+from dataclasses import dataclass, field
+from typing import Optional, Any
 from enum import Enum
 
 from . import __version__
@@ -51,8 +52,9 @@ class LoadStatus(Enum):
     MISSING = "missing"
     CORRUPTED = "corrupted"
 
-class LoadingResult(NamedTuple):
-    tasks: dict[str, dict] = {}
+@dataclass(frozen=True)
+class LoadingResult:
+    tasks: dict[str, dict] = field(default_factory=dict)
     status: LoadStatus = LoadStatus.OK
     file_path: Optional[Path] = None
     backup_path: Optional[Path] = None

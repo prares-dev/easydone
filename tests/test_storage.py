@@ -54,6 +54,16 @@ def _write_payload(json_file, **overrides):
     json_file.write_text(json.dumps(payload), encoding="utf-8")
 
 
+def test_loading_results_do_not_share_default_tasks():
+    """Each result gets its own task dictionary when no tasks are supplied."""
+    first = LoadingResult()
+    second = LoadingResult()
+
+    first.tasks["123"] = {"description": "isolated"}
+
+    assert second.tasks == {}
+
+
 # ===========
 # Happy path
 # ===========

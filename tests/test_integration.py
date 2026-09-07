@@ -124,6 +124,18 @@ def test_new_parser_rejects_invalid(empty_parser):
     with pytest.raises(SystemExit):
         empty_parser.main_parser.parse_args(["new", "test", "--priority", "invalid"])
 
+
+def test_new_rejects_impossible_due_date(empty_manager):
+    with pytest.raises(ValueError, match="Invalid due date"):
+        empty_manager.new("test", due_date="2026-02-30")
+
+
+def test_update_rejects_unchanged_due_date(manager):
+    manager.tasks["123"]["due"] = "2026-09-10"
+
+    with pytest.raises(ValueError, match="different from the current one"):
+        manager.update("123", new_due="2026-09-10")
+
 def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
     assert args.no_dates is True

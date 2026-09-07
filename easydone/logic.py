@@ -1,7 +1,6 @@
-from re import fullmatch
 from random import randint
 from datetime import datetime, timedelta
-from typing import Optional, Literal, Union
+from typing import Optional, Literal
 
 SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
@@ -63,7 +62,7 @@ class TasksManager():
         if new_due is not None:
             if not self._valid_date(new_due):
                 raise ValueError(f"Attempting to update task: {id} with invalid due date {new_due}, please use format YYYY-MM-DD")
-            elif hasattr(task, 'due') and new_due == task['due']:
+            elif new_due == task.get('due'):
                 raise ValueError("New due date must be different from the current one.")
             
         if new_descr is not None and new_descr == task['description']:
@@ -186,8 +185,13 @@ class TasksManager():
     
     def _valid_date(self, date_str: str) -> bool:
         """ Validates a given str representing a date in the format YYYY-MM-DD"""
-        pattern = r'\d{4}-\d{2}-\d{2}'
-        return bool(fullmatch(pattern, date_str))
+        if not isinstance(date_str, str):
+            return False
+        try:
+            datetime.strptime(date_str, "%Y-%m-%d")
+        except ValueError:
+            return False
+        return True
 
 def is_overdue(task: dict) -> bool:
     """ Returns True | False whether the given task is overdue or not. """

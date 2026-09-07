@@ -182,7 +182,7 @@ pytest tests/test_format.py
 
 | Test File | What It Tests |
 | :-------- | :------------ |
-| `test_cli_logic.py` | CLI + Logic integration (argument parsing, handlers, user interaction, output) |
+| `test_integration.py` | CLI + Logic integration (argument parsing, handlers, user interaction, output) |
 | `test_storage.py` | Storage layer (loading, saving, atomic writes, backups, quarantine) |
 | `test_format.py` | Output formatting (Rich availability, plain‑text fallback) |
 
