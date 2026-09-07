@@ -26,13 +26,13 @@ These tests verify that:
 - Errors are caught and displayed properly
 """
 
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 import re
 
 import pytest
 
 from easydone.cli import Parser
-from easydone.logic import TasksManager
+from easydone.logic import TasksManager, normalize_due_date
 from easydone import __version__
 
 
@@ -130,11 +130,50 @@ def test_new_rejects_impossible_due_date(empty_manager):
         empty_manager.new("test", due_date="2026-02-30")
 
 
+def test_new_rejects_clear_due_date(empty_manager):
+    with pytest.raises(ValueError, match="Clear can only be used"):
+        empty_manager.new("test", due_date="Clear")
+
+
 def test_update_rejects_unchanged_due_date(manager):
     manager.tasks["123"]["due"] = "2026-09-10"
 
     with pytest.raises(ValueError, match="different from the current one"):
         manager.update("123", new_due="2026-09-10")
+
+
+@pytest.mark.parametrize(
+    ("value", "expected"),
+    [
+        ("Clear", None),
+        ("Tomorrow", "2026-09-02"),
+        ("+3", "2026-09-04"),
+        ("-2", "2026-08-30"),
+    ],
+)
+def test_normalize_due_date_keywords(value, expected):
+    assert normalize_due_date(value, today=date(2026, 9, 1)) == expected
+
+
+def test_update_can_clear_due_date(manager):
+    manager.tasks["123"]["due"] = "2026-09-10"
+
+    assert manager.update("123", new_due="Clear") is True
+    assert manager.tasks["123"]["due"] is None
+
+
+def test_update_rejects_clear_when_task_has_no_due_date(manager):
+    manager.tasks["123"]["due"] = None
+
+    with pytest.raises(ValueError, match="different from the current one"):
+        manager.update("123", new_due="Clear")
+
+
+def test_update_without_due_date_does_not_change_due_date(manager):
+    manager.tasks["123"]["due"] = "2026-09-10"
+
+    assert manager.update("123", new_descr="new description") is True
+    assert manager.tasks["123"]["due"] == "2026-09-10"
 
 def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])

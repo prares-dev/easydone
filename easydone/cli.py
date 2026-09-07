@@ -57,7 +57,7 @@ class Parser():
         # optional flag for indicating due date
         new_pars.add_argument(
             "-dd", "--due-date", type=str, 
-            help="Optional due date.")
+            help="Update due date (YYYY-MM-DD, Tomorrow, +/-N).")
         
         # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
         new_pars.set_defaults(func=self._handle_new)
@@ -82,7 +82,7 @@ class Parser():
         
         update_pars.add_argument(
             "-dd", "--due-date", metavar="new-due-date",
-            type=str, help="Update due date.")
+            help="Update due date (YYYY-MM-DD, Tomorrow, +/-N, or Clear to remove).")
 
         update_pars.set_defaults(func=self._handle_update)
         
@@ -194,7 +194,11 @@ class Parser():
         )
     
     def _handle_update(self, args: Namespace) -> bool:
-        has_update_target = args.description or args.priority or args.due_date
+        has_update_target = (
+            args.description is not None
+            or args.priority is not None
+            or args.due_date is not None
+        )
         if not has_update_target:
             self.main_parser.error("the update command requires at least one field change: --description, --priority or --due-date")
         return self.tasks_manager.update(
