@@ -2,6 +2,7 @@ import builtins
 import importlib
 import sys
 import types
+from typing import ClassVar
 
 import pytest
 
@@ -19,7 +20,7 @@ def _reload_format_module(monkeypatch, *, rich_available):
         box_mod = types.ModuleType("rich.box")
 
         class FakeConsole:
-            instances = []
+            instances: ClassVar = []
 
             def __init__(self):
                 self.rendered = []

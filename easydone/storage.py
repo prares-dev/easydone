@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 import shutil
@@ -7,7 +9,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 from . import __version__
 
@@ -56,16 +58,16 @@ class LoadStatus(Enum):
 class LoadingResult:
     tasks: dict[str, dict] = field(default_factory=dict)
     status: LoadStatus = LoadStatus.OK
-    file_path: Optional[Path] = None
-    backup_path: Optional[Path] = None
-    backup_exception: Optional[Exception] = None
-    found_schema_version: Optional[int] = None
-    found_app_version: Optional[str] = None
+    file_path: Path | None = None
+    backup_path: Path | None = None
+    backup_exception: Exception | None = None
+    found_schema_version: int | None = None
+    found_app_version: str | None = None
     schema_mismatch: bool = False
     app_mismatch: bool = False
 
 class JSONHandler:
-    def __init__(self, json_file: Optional[str] = None):
+    def __init__(self, json_file: str | None = None):
         """
         Initialize a storage handler with a stable absolute data file path.
         """

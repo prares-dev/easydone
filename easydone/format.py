@@ -7,7 +7,7 @@ It uses Rich when available, otherwise falls back to plain text.
 from __future__ import annotations
 
 import hashlib
-from typing import Any, Dict, List, Optional, TypedDict
+from typing import Any, TypedDict
 
 from . import __version__
 from .logic import time_to_due
@@ -25,7 +25,7 @@ class MyText(TypedDict, total=False):
         {"text": "file not found"}
     """
     text: str
-    style: Optional[str]
+    style: str | None
 
 
 # ----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ def tag_style(tag: str) -> str:
 # Core rendering helpers
 # ----------------------------------------------------------------------------
 
-def _print(text: str, style: Optional[str] = None) -> None:
+def _print(text: str, style: str | None = None) -> None:
     """Print a single piece of text with optional styling if Rich is available.
 
     This is for simple messages that are just one string with one style.
@@ -91,7 +91,7 @@ def _print(text: str, style: Optional[str] = None) -> None:
     else:
         print(text)
 
-def _render_parts(parts: List[MyText], return_val: bool = False) -> Optional[str | Text]:
+def _render_parts(parts: list[MyText], return_val: bool = False) -> str | Text | None:
     """Render multiple styled text parts.
 
     If Rich is available, each part is rendered with its style.
@@ -119,7 +119,7 @@ def _render_parts(parts: List[MyText], return_val: bool = False) -> Optional[str
             return result
         print(result)
 
-def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
+def _plain_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
     """Plain text table renderer."""
     print("┌────────────────────────┐")
     print("│ EASYDONE: Task Tracker |")
@@ -148,7 +148,7 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
             print(f"│  ├── Created at: {create}")
             print(f"│  └── Updated at: {update}")
 
-def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
+def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
     """Rich table renderer."""
     table = Table(  # type: ignore
         show_header=True,
@@ -240,7 +240,7 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
 # Public API
 # ----------------------------------------------------------------------------
 
-def print_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool = False) -> None:
+def print_table(tasks: dict[str, dict], ids: list[str], no_dates: bool = False) -> None:
     """Render a task table with Rich or plain text fallback."""
     if not ids:
         message = "No tasks exist." if not tasks else "No tasks match the selected filters."
@@ -300,7 +300,7 @@ def confirm_deletion(task_id: str, description: str, max_attempts: int = 3) -> b
     attempts = 0
 
     # Build the prompt once – as a list of MyText parts
-    prompt_parts: List[MyText] = [
+    prompt_parts: list[MyText] = [
         {"text": "Are you sure about deleting task "},
         {"text": f"{task_id}: \"{description}\"", "style": "yellow"},
         {"text": " ("},

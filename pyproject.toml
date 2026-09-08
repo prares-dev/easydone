@@ -31,3 +31,6 @@ include = ["easydone*"]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra"
+
+[tool.ruff.lint]
+ignore = ['DTZ001', 'DTZ005', 'DTZ007', 'DTZ011']

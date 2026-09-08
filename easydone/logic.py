@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 from copy import deepcopy
 from datetime import date, datetime, timedelta
 from random import randint
 from re import fullmatch
-from typing import Literal, Optional
+from typing import Literal
 
 SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
@@ -13,12 +15,12 @@ STATUS_ORDER = {status: int(i)
 PRIORITY_ORDER = {  prior: int(i) 
                     for i, prior in enumerate(SUPPORTED_PRIORITIES)}
 
-def normalize_due_date(value: Optional[str], today: Optional[date] = None) -> Optional[str]:
+def normalize_due_date(value: str | None, today: date | None = None) -> str | None:
     """Convert a due-date keyword or date into canonical YYYY-MM-DD form."""
     if value is None:
         return None
     if not isinstance(value, str):
-        raise ValueError("Due date must be a date, Tomorrow, +/-N, or Clear")
+        raise TypeError("Due date must be a date, Tomorrow, +/-N, or Clear")
 
     normalized = value.strip()
     if normalized.casefold() == "clear":
@@ -57,8 +59,8 @@ class TasksManager:
     def new(self, description: str, *,
             status: str = 'not-done',
             priority: str = 'low',
-            due_date: Optional[str] = None,
-            tags: Optional[list[str]] = None
+            due_date: str | None = None,
+            tags: list[str] | None = None
             ) -> Literal[True]:
         """ Create a new task. """
         
@@ -83,11 +85,11 @@ class TasksManager:
         return True
 
     def update( self, id: str, *,
-                new_descr: Optional[str] = None,
-                new_prior: Optional[str] = None,
-                new_due: Optional[str] = None,
-                add_tags: Optional[list[str]] = None,
-                remove_tags: Optional[list[str]] = None,
+                new_descr: str | None = None,
+                new_prior: str | None = None,
+                new_due: str | None = None,
+                add_tags: list[str] | None = None,
+                remove_tags: list[str] | None = None,
                 ) -> bool:
         """ Updates a task. """
         
@@ -144,7 +146,7 @@ class TasksManager:
     @staticmethod
     def _normalize_tags(tags: list[str]) -> list[str]:
         if not isinstance(tags, list):
-            raise ValueError("Tags must be a list of non-empty strings")
+            raise TypeError("Tags must be a list of non-empty strings")
         normalized = []
         for tag in tags:
             if not isinstance(tag, str) or not tag.strip():
@@ -208,11 +210,11 @@ class TasksManager:
         return removed
 
     def list(   self, *,
-                filt_status: Optional[str] = None,
-                filt_priority: Optional[str] = None,
-                filt_tags: Optional[list[str]] = None,
+                filt_status: str | None = None,
+                filt_priority: str | None = None,
+                filt_tags: list[str] | None = None,
                 filt_overdue: bool = False,
-                sort_by: Optional[str] = None,
+                sort_by: str | None = None,
                 reverse: bool = False
                 ) -> list[str]:
         """ Returns a filtered list of ids according to status and priority. """
@@ -304,7 +306,7 @@ def is_overdue(task: dict) -> bool:
     time = time_to_due(task)
     return time is not None and time.total_seconds() < 0
 
-def time_to_due(task: dict) -> Optional[timedelta]:
+def time_to_due(task: dict) -> timedelta | None:
     """ Receives a task id and return a boolean indicating if it is overdue or not. """
     if not isinstance(task, dict):
         raise TypeError()
