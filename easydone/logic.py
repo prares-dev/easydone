@@ -6,6 +6,7 @@ from random import randint
 from re import fullmatch
 from typing import Literal
 
+
 SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
 
@@ -190,7 +191,11 @@ class TasksManager:
         try:
             updated = False
             for id in unique_ids:
-                updated = self.update(id, **changes) or updated
+                # '|=' is called boolean acumulation, it will set updated to True if any of the updates return True
+                updated |= self.update(
+                    id, 
+                    # manually cast the values to Any to avoid type checking issues, since we are passing **changes which is a dict of str to object
+                    **{k: cast(Any, v) for k, v in changes.items()})
             return updated
         except (KeyError, ValueError):
             self.tasks.clear()
