@@ -31,6 +31,7 @@ The goal was to practice building a real-world CLI tool with:
 - **Human‑readable JSON** – inspect your data anytime.
 - **Bulletproof storage** – atomic writes, `.bak` backups, and quarantined corrupt files.
 - **Beautiful output** with [Rich](https://github.com/Textualize/rich) – **optional**, falls back to plain text if not installed.
+- **Consistent tag colors** – the same tag gets a stable color in Rich output. The palette has ten styles, so different tags can still share a color when their hash values map to the same style.
 - **Clean architecture** – business logic separated from CLI, making the core testable and reusable.
 
 ---
@@ -92,7 +93,7 @@ easydone delete 123 456 789 -f
 | Command | Description |
 | :------ | :---------- |
 | `easydone new DESCRIPTION [--status STATUS] [--priority PRIORITY] [--due-date DATE]` | Create a task. Due dates accept `YYYY-MM-DD`, `Tomorrow`, `+N`, or `-N`. |
-| `easydone update TASK_ID [--description NEW] [--priority NEW] [--due-date DATE]` | Change description, priority, and/or due date. Use `Clear` to remove a due date. |
+| `easydone update TASK_ID [--description NEW] [--priority NEW] [--due-date DATE] [--add-tag TAG ...] [--remove-tag TAG ...]` | Change task fields and add or remove tags. Use `Clear` to remove a due date. |
 | `easydone mark TASK_ID new-status` | Set status to `not-done`, `in-progress`, or `done`. |
 | `easydone delete TASK_ID [TASK_ID ...] [-f]` | Delete one or more tasks. Use `-f` to skip confirmation. |
 | `easydone list [--status STATUS] [--priority PRIORITY] [--no-dates]` | Show tasks. Apply filters and hide dates if you like. |

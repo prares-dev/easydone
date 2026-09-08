@@ -4,9 +4,11 @@ This module centralizes all user-facing presentation logic.
 It uses Rich when available, otherwise falls back to plain text.
 """
 
+from __future__ import annotations
+
+import hashlib
 from typing import Dict, List, Any, Optional, TypedDict
 from .logic import time_to_due
-
 from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
 from . import __version__
 
@@ -40,6 +42,36 @@ except ImportError:
 
 _console = Console() if RICH_AVAILABLE else None # type: ignore
 
+TAG_STYLES = (
+    "bright_blue",
+    "bright_cyan",
+    "bright_green",
+    "bright_magenta",
+    "bright_yellow",
+    "bright_red",
+    "bright_white",
+    "cyan",
+    "green",
+    "magenta",
+)
+
+SEMANTIC_TAG_STYLES = {
+    "bug": "bold red",
+    "feature": "bold green",
+    "personal": "bright_magenta",
+    "work": "bright_blue",
+}
+
+
+def tag_style(tag: str) -> str:
+    """Return a stable Rich style for a tag value."""
+    semantic_style = SEMANTIC_TAG_STYLES.get(tag.casefold())
+    if semantic_style:
+        return semantic_style
+    digest = hashlib.sha256(tag.encode("utf-8")).digest()
+    style_index = int.from_bytes(digest[:4], "big") % len(TAG_STYLES)
+    return TAG_STYLES[style_index]
+
 
 # ----------------------------------------------------------------------------
 # Core rendering helpers
@@ -58,7 +90,7 @@ def _print(text: str, style: Optional[str] = None) -> None:
     else:
         print(text)
 
-def _render_parts(parts: List[MyText]) -> None:
+def _render_parts(parts: List[MyText], return_val: bool = False) -> Optional[str | Text]:
     """Render multiple styled text parts.
 
     If Rich is available, each part is rendered with its style.
@@ -74,12 +106,17 @@ def _render_parts(parts: List[MyText]) -> None:
         _render_parts(parts)
     """
     if RICH_AVAILABLE:
-        text_obj = Text() # type: ignore
+        text_obj = Text("") # type: ignore
         for part in parts:
             text_obj.append(part.get("text", ""), style=part.get("style"))
+        if return_val:
+            return text_obj
         _console.print(text_obj)  # type: ignore
     else:
-        print("".join(part.get("text", "") for part in parts))
+        result = "".join(part.get("text", "") for part in parts)
+        if return_val:
+            return result
+        print(result)
 
 def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Plain text table renderer."""
@@ -91,40 +128,46 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
         desc = task.get('description', '-')
         prior = task.get('priority', '-')
         stat = task.get('status', '-')
-        create = task.get('created-at', '-')
-        due = task.get('due', '-')
-        due = '-' if due is None else due
-        update = task.get('updated-at', '-')
-        update = '-' if update is None else update
+        tags = task.get('tags', [])
+        tag_text = " ".join(f"[{tag}]" for tag in tags) or "-"
 
         print(f"┌─ ID: {task_id} ... \"{desc}\"")
         print(f"│  ├── Priority: {prior}")
-        print(f"│  {'├──' if not no_dates else '└──'} Status: {stat}")
+        print(f"│  ├── Status: {stat}")
+        print(f"│  {'├──' if not no_dates else '└──'} Tags: {tag_text}")
+
         if not no_dates:
+            create = task.get('created-at', '-')
+            due = task.get('due', '-')
+            due = '-' if due is None else due
+            update = task.get('updated-at', '-')
+            update = '-' if update is None else update
+
             print(f"│  ├── Due: {due}")
             print(f"│  ├── Created at: {create}")
             print(f"│  └── Updated at: {update}")
 
 def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Rich table renderer."""
-    table = Table(show_header=True, header_style="bold magenta") # type: ignore
-    table.add_column("ID", style="dim", no_wrap=True, justify="center")
-    table.add_column("Description")
-    table.add_column("Priority", no_wrap=True)
+    table = Table(show_header=True, header_style="bold white") # type: ignore
+    table.add_column("ID", header_style = "gold1", style="gold1", no_wrap=True, justify="center")
+    table.add_column("Description", header_style=" white", style="italic white")
+    table.add_column("Tags", no_wrap=True)
+    table.add_column("Priority", no_wrap=True, justify="center")
     table.add_column("Status", no_wrap=True, justify="center")
     if not no_dates:
         table.add_column("Due", no_wrap=True, justify="center")
-        table.add_column("Created", no_wrap=True, justify="center")
-        table.add_column("Updated", no_wrap=True, justify="center")
+        table.add_column(":date:Created", no_wrap=True, justify="center")
+        table.add_column(":pencil:Updated", no_wrap=True, justify="center")
 
     priority_styles = {
         "low": "dim",
-        "normal": "blue",
+        "normal": "",
         "high": "bold yellow",
         "urgent": "bold red",
     }
     status_styles = {
-        "not-done": "yellow",
+        "not-done": "dim",
         "in-progress": "cyan",
         "done": "green",
     }
@@ -137,15 +180,26 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         if time.total_seconds() < 0:
             return "bold red"
         elif time.days < 5:
-            return "yellow"
+            return "bright_yellow"
         else:
-            return 'green'
+            return 'dim'
 
     for task_id in ids:
         task = tasks[task_id]
         desc = task.get('description', '-')
         prior = task.get('priority', '-')
         stat = task.get('status', '-')
+        tags = task.get('tags', [])
+
+        description_text = Text(desc, overflow='ellipsis') # type: ignore
+        tags_text = Text("") # type: ignore
+        if tags:
+            for index, tag in enumerate(tags):
+                if index:
+                    tags_text.append(" ")
+                tags_text.append(f"[{tag}]", style=tag_style(tag))
+        else:
+            tags_text.append("-")
 
         if not no_dates:
             create = task.get('created-at', '-')
@@ -153,9 +207,11 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
             due = '-' if due is None else due
             update = task.get('updated-at', '-')
             update = '-' if update is None else update
+
             table.add_row(
                 task_id,
-                Text(desc, overflow='ellipsis'), # type: ignore
+                description_text, # type: ignore
+                tags_text, # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
                 Text(due, style=due_style(task)),   # type: ignore
@@ -165,7 +221,8 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         else:
             table.add_row(
                 task_id,
-                Text(desc, overflow='ellipsis'), # type: ignore
+                description_text, # type: ignore
+                tags_text, # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
             )
@@ -180,7 +237,8 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
 def print_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool = False) -> None:
     """Render a task table with Rich or plain text fallback."""
     if not ids:
-        _print("No tasks to show.", style='yellow')
+        message = "No tasks exist." if not tasks else "No tasks match the selected filters."
+        _print(message, style='yellow')
         return
     
     if not RICH_AVAILABLE:
