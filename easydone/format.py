@@ -36,6 +36,7 @@ try:
     from rich.console import Console
     from rich.table import Table
     from rich.text import Text
+    from rich import box
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
@@ -149,10 +150,15 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
 
 def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Rich table renderer."""
-    table = Table(show_header=True, header_style="bold white") # type: ignore
+    table = Table(  # type: ignore
+        show_header=True,
+        header_style="bold white",
+        show_lines=True,
+        box=box.SIMPLE_HEAD, # type: ignore
+    ) # type: ignore
     table.add_column("ID", header_style = "gold1", style="gold1", no_wrap=True, justify="center")
-    table.add_column("Description", header_style=" white", style="italic white")
-    table.add_column("Tags", no_wrap=True)
+    table.add_column("Description", header_style=" white", style="italic white", min_width=30, overflow="fold")
+    table.add_column("Tags", overflow="fold")
     table.add_column("Priority", no_wrap=True, justify="center")
     table.add_column("Status", no_wrap=True, justify="center")
     if not no_dates:
