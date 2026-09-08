@@ -195,6 +195,7 @@ def test_rich_tags_have_stable_styles(monkeypatch):
     assert first_tags[0][1] == format_module.tag_style("work")
     assert second_tags[1][1] == format_module.tag_style("home")
     assert format_module.tag_style("work") == format_module.tag_style("work")
+    assert len(format_module.TAG_STYLES) == 10
 
 
 def test_print_table_uses_rich_with_no_dates(monkeypatch):

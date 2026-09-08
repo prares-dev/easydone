@@ -48,6 +48,11 @@ TAG_STYLES = (
     "bright_green",
     "bright_magenta",
     "bright_yellow",
+    "bright_red",
+    "bright_white",
+    "cyan",
+    "green",
+    "magenta",
 )
 
 

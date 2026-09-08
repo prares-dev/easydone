@@ -31,6 +31,7 @@ The goal was to practice building a real-world CLI tool with:
 - **Human‑readable JSON** – inspect your data anytime.
 - **Bulletproof storage** – atomic writes, `.bak` backups, and quarantined corrupt files.
 - **Beautiful output** with [Rich](https://github.com/Textualize/rich) – **optional**, falls back to plain text if not installed.
+- **Consistent tag colors** – the same tag gets a stable color in Rich output. The palette has ten styles, so different tags can still share a color when their hash values map to the same style.
 - **Clean architecture** – business logic separated from CLI, making the core testable and reusable.
 
 ---
