@@ -13,7 +13,7 @@ license = { file = "LICENSE" }
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0",]
+dev = ["pytest>=8.0", "ruff>=0.1.0"]
 pretty = ["rich>=13.0"]
 
 [project.urls]

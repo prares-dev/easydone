@@ -7,11 +7,11 @@ It uses Rich when available, otherwise falls back to plain text.
 from __future__ import annotations
 
 import hashlib
-from typing import Dict, List, Any, Optional, TypedDict
-from .logic import time_to_due
-from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
-from . import __version__
+from typing import Any, Dict, List, Optional, TypedDict
 
+from . import __version__
+from .logic import time_to_due
+from .storage import CURRENT_SCHEMA_VERSION, LoadingResult, LoadStatus
 
 # ----------------------------------------------------------------------------
 # Types
@@ -33,10 +33,10 @@ class MyText(TypedDict, total=False):
 # ----------------------------------------------------------------------------
 
 try:
+    from rich import box
     from rich.console import Console
     from rich.table import Table
     from rich.text import Text
-    from rich import box
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False

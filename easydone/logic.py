@@ -1,7 +1,8 @@
-from random import randint
+from copy import deepcopy
 from datetime import date, datetime, timedelta
+from random import randint
 from re import fullmatch
-from typing import Optional, Literal
+from typing import Literal, Optional
 
 SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
@@ -44,7 +45,7 @@ def normalize_due_date(value: Optional[str], today: Optional[date] = None) -> Op
     return normalized
 
 
-class TasksManager():
+class TasksManager:
     """ A class to manage all tasks logic. """
     def __init__(self, tasks_from_file: dict[str, dict]):
         self.tasks = tasks_from_file
@@ -164,6 +165,36 @@ class TasksManager():
         self.tasks[id]["updated-at"] = str(datetime.now()).split(" ")[0]
         return True
 
+    def mark_many(self, ids: list[str], new_status: str) -> bool:
+        """Mark multiple tasks after validating every ID and status."""
+        unique_ids = list(dict.fromkeys(ids))
+        if new_status not in SUPPORTED_STATUS:
+            raise ValueError(f"Attempting to update tasks with invalid status: {new_status}")
+        for id in unique_ids:
+            if id not in self.tasks:
+                raise KeyError(f"Nonexistent task ({id})")
+        for id in unique_ids:
+            self.mark(id, new_status)
+        return bool(unique_ids)
+
+    def update_many(self, ids: list[str], **changes: object) -> bool:
+        """Update multiple tasks atomically."""
+        unique_ids = list(dict.fromkeys(ids))
+        for id in unique_ids:
+            if id not in self.tasks:
+                raise KeyError(f"Nonexistent task ({id})")
+
+        original_tasks = deepcopy(self.tasks)
+        try:
+            updated = False
+            for id in unique_ids:
+                updated = self.update(id, **changes) or updated
+            return updated
+        except (KeyError, ValueError):
+            self.tasks.clear()
+            self.tasks.update(original_tasks)
+            raise
+
     def delete(self, ids: list[str]) -> list[str]:
         """Deletes the given ids and returns the ones actually removed."""
         for id in ids:
@@ -179,6 +210,7 @@ class TasksManager():
     def list(   self, *,
                 filt_status: Optional[str] = None,
                 filt_priority: Optional[str] = None,
+                filt_tags: Optional[list[str]] = None,
                 filt_overdue: bool = False,
                 sort_by: Optional[str] = None,
                 reverse: bool = False
@@ -190,13 +222,19 @@ class TasksManager():
             raise ValueError(f"Invalid status filter: {filt_status}")
         if filt_priority is not None and filt_priority not in SUPPORTED_PRIORITIES:
             raise ValueError(f"Invalid priority filter: {filt_priority}")
+        normalized_tags = self._normalize_tags(filt_tags or [])
 
         if not self.tasks:
             return []
         
         filtered = []
         for key, value in self.tasks.items():
-            if (filt_status is None or value['status'] == filt_status) and (filt_priority is None or value['priority'] == filt_priority):
+            task_tags = value.get("tags", [])
+            if (
+                (filt_status is None or value['status'] == filt_status)
+                and (filt_priority is None or value['priority'] == filt_priority)
+                and all(tag in task_tags for tag in normalized_tags)
+            ):
                 due = value.get('due', '9999')
                 due = due if due else '9999'
                 if not filt_overdue or is_overdue(value):

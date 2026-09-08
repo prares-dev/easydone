@@ -26,15 +26,14 @@ These tests verify that:
 - Errors are caught and displayed properly
 """
 
-from datetime import date, datetime, timedelta
 import re
+from datetime import date, datetime, timedelta
 
 import pytest
 
+from easydone import __version__
 from easydone.cli import Parser
 from easydone.logic import TasksManager, normalize_due_date
-from easydone import __version__
-
 
 # ----------------------------------------------------------------------------
 # Fixtures
@@ -232,6 +231,49 @@ def test_update_parser_accepts_multiple_tag_options(parser):
 
     assert args.add_tag == ["work", "urgent"]
     assert args.remove_tag == ["old"]
+
+
+def test_list_filters_by_all_tags(manager):
+    manager.tasks["123"]["tags"] = ["work", "planning"]
+    manager.tasks["456"]["tags"] = ["work"]
+    manager.tasks["111"]["tags"] = ["personal"]
+
+    assert manager.list(filt_tags=["work"]) == ["123", "456"]
+    assert manager.list(filt_tags=["work", "planning"]) == ["123"]
+
+
+def test_mark_many_validates_all_ids_before_mutating(manager):
+    with pytest.raises(KeyError):
+        manager.mark_many(["123", "missing"], "done")
+
+    assert manager.tasks["123"]["status"] == "not-done"
+
+
+def test_update_many_rolls_back_if_one_task_fails(manager):
+    with pytest.raises(ValueError, match="different from the current one"):
+        manager.update_many(
+            ["123", "456"],
+            new_prior="normal",
+        )
+
+    assert manager.tasks["123"]["priority"] == "low"
+    assert manager.tasks["456"]["priority"] == "normal"
+
+
+def test_bulk_command_parsers_accept_multiple_ids(parser):
+    update_args = parser.main_parser.parse_args(
+        ["update", "123", "456", "--description", "shared"]
+    )
+    mark_args = parser.main_parser.parse_args(
+        ["mark", "123", "456", "done"]
+    )
+    list_args = parser.main_parser.parse_args(
+        ["list", "--tag", "work", "planning"]
+    )
+
+    assert update_args.ids == ["123", "456"]
+    assert mark_args.ids == ["123", "456"]
+    assert list_args.tag == ["work", "planning"]
 
 def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
