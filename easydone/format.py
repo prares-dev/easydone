@@ -55,9 +55,19 @@ TAG_STYLES = (
     "magenta",
 )
 
+SEMANTIC_TAG_STYLES = {
+    "bug": "bold red",
+    "feature": "bold green",
+    "personal": "bright_magenta",
+    "work": "bright_blue",
+}
+
 
 def tag_style(tag: str) -> str:
     """Return a stable Rich style for a tag value."""
+    semantic_style = SEMANTIC_TAG_STYLES.get(tag.casefold())
+    if semantic_style:
+        return semantic_style
     digest = hashlib.sha256(tag.encode("utf-8")).digest()
     style_index = int.from_bytes(digest[:4], "big") % len(TAG_STYLES)
     return TAG_STYLES[style_index]
@@ -118,12 +128,13 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
         desc = task.get('description', '-')
         prior = task.get('priority', '-')
         stat = task.get('status', '-')
-        tags = task.get('tags', '[]')
+        tags = task.get('tags', [])
+        tag_text = " ".join(f"[{tag}]" for tag in tags) or "-"
 
         print(f"┌─ ID: {task_id} ... \"{desc}\"")
         print(f"│  ├── Priority: {prior}")
         print(f"│  ├── Status: {stat}")
-        print(f"│  {'├──' if not no_dates else '└──'} Tags: {tags}")
+        print(f"│  {'├──' if not no_dates else '└──'} Tags: {tag_text}")
 
         if not no_dates:
             create = task.get('created-at', '-')
@@ -141,6 +152,7 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     table = Table(show_header=True, header_style="bold white") # type: ignore
     table.add_column("ID", header_style = "gold1", style="gold1", no_wrap=True, justify="center")
     table.add_column("Description", header_style=" white", style="italic white")
+    table.add_column("Tags", no_wrap=True)
     table.add_column("Priority", no_wrap=True, justify="center")
     table.add_column("Status", no_wrap=True, justify="center")
     if not no_dates:
@@ -179,13 +191,15 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         stat = task.get('status', '-')
         tags = task.get('tags', [])
 
+        description_text = Text(desc, overflow='ellipsis') # type: ignore
+        tags_text = Text("") # type: ignore
         if tags:
-            text_obj = Text("") # type: ignore
-            for tag in tags:
-                text_obj.append(f"[{tag}] ", style=tag_style(tag))
-            text_obj.append(f"{desc}")
+            for index, tag in enumerate(tags):
+                if index:
+                    tags_text.append(" ")
+                tags_text.append(f"[{tag}]", style=tag_style(tag))
         else:
-            text_obj = Text(desc, overflow='ellipsis') # type: ignore
+            tags_text.append("-")
 
         if not no_dates:
             create = task.get('created-at', '-')
@@ -196,7 +210,8 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
 
             table.add_row(
                 task_id,
-                text_obj, # type: ignore
+                description_text, # type: ignore
+                tags_text, # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
                 Text(due, style=due_style(task)),   # type: ignore
@@ -206,7 +221,8 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         else:
             table.add_row(
                 task_id,
-                text_obj, # type: ignore
+                description_text, # type: ignore
+                tags_text, # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
             )
@@ -221,7 +237,8 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
 def print_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool = False) -> None:
     """Render a task table with Rich or plain text fallback."""
     if not ids:
-        _print("No tasks to show.", style='yellow')
+        message = "No tasks exist." if not tasks else "No tasks match the selected filters."
+        _print(message, style='yellow')
         return
     
     if not RICH_AVAILABLE:
