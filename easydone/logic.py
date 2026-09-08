@@ -4,8 +4,7 @@ from copy import deepcopy
 from datetime import date, datetime, timedelta
 from random import randint
 from re import fullmatch
-from typing import Literal
-
+from typing import Any, Literal, cast
 
 SUPPORTED_STATUS = ["not-done", "in-progress", "done",]
 SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]

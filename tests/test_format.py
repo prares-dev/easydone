@@ -63,7 +63,7 @@ def _reload_format_module(monkeypatch, *, rich_available):
         console_mod.Console = FakeConsole # type: ignore
         table_mod.Table = FakeTable # type: ignore
         text_mod.Text = FakeText # type: ignore
-        box_mod.SIMPLE_HEAD = object()
+        box_mod.SIMPLE_HEAD = object() # type: ignore
 
         monkeypatch.setitem(sys.modules, "rich", rich_mod)
         monkeypatch.setitem(sys.modules, "rich.console", console_mod)

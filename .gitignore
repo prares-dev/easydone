@@ -1,17 +1,20 @@
-# Local development files
+# Local development
 .venv/
 .no-rich/
 .vscode/
 *.code-workspace
-scripts/
-.github/
 
-# Python-generated files
+# Local tooling and scripts
+.github/
+scripts/
+
+# Python caches and generated files
 __pycache__/
 *.py[codz]
+.pytest_cache/
+.ruff_cache/
 
 # Test and coverage output
-.pytest_cache/
 .coverage
 htmlcov/
 
