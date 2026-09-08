@@ -18,7 +18,12 @@ import shutil
 import pytest
 
 from easydone import __version__
-from easydone.storage import JSONHandler, LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
+from easydone.storage import (
+    CURRENT_SCHEMA_VERSION,
+    JSONHandler,
+    LoadingResult,
+    LoadStatus,
+)
 
 
 @pytest.fixture

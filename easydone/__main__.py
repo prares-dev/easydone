@@ -1,7 +1,8 @@
 from .cli import Parser
+from .format import describe_load_result, report_backup
 from .logic import TasksManager
 from .storage import JSONHandler
-from .format import describe_load_result, report_backup
+
 
 def main() -> None:
     # JSONHandler instance for load/save in .json.

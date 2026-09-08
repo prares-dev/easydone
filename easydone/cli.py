@@ -1,9 +1,11 @@
-from argparse import ArgumentParser, Namespace, SUPPRESS
-from .logic import TasksManager, SUPPORTED_PRIORITIES, SUPPORTED_STATUS
-from .format import print_table, confirm_deletion
-from . import __version__
+from argparse import ArgumentParser, Namespace
 
-class Parser():
+from . import __version__
+from .format import confirm_deletion, print_table
+from .logic import SUPPORTED_PRIORITIES, SUPPORTED_STATUS, TasksManager
+
+
+class Parser:
     """ A class to manage all the argument parser and command features. """
     
     def __init__(self, manager: TasksManager) -> None:
@@ -73,8 +75,8 @@ class Parser():
         update_pars = sub_pars.add_parser("update", help="Update a task.")
         
         update_pars.add_argument(
-            "id", type=str, 
-            help="ID of the task to be updated.")
+            "ids", type=str, nargs="+", metavar="id",
+            help="IDs of the tasks to be updated.")
         
         update_pars.add_argument(
             "-d", "--description", metavar="new-description", type=str, 
@@ -105,8 +107,8 @@ class Parser():
         mark_pars = sub_pars.add_parser("mark", help="Mark a task with a new status.")
         
         mark_pars.add_argument(
-            "id", type=str, 
-            help="ID of the task to be marked.")
+            "ids", type=str, nargs="+", metavar="id",
+            help="IDs of the tasks to be marked.")
         
         mark_pars.add_argument(
             "new_status", type=str, 
@@ -147,6 +149,10 @@ class Parser():
             "-p", "--priority", type=str, 
             help="Filter by priority.",
             choices=SUPPORTED_PRIORITIES, default=None)
+
+        filt_group.add_argument(
+            "-t", "--tag", nargs="+", metavar="TAG",
+            help="Show tasks containing all specified tags.")
         
         filt_group.add_argument(
             "-o", "--overdue", action="store_true" ,
@@ -220,18 +226,18 @@ class Parser():
                 "the update command requires at least one field change: "
                 "--description, --priority, --due-date, --add-tag or --remove-tag"
             )
-        return self.tasks_manager.update(
-                args.id, 
-                new_descr=args.description, 
-                new_prior=args.priority,
-                new_due=args.due_date,
-                add_tags=args.add_tag,
-                remove_tags=args.remove_tag,
+        return self.tasks_manager.update_many(
+            args.ids,
+            new_descr=args.description,
+            new_prior=args.priority,
+            new_due=args.due_date,
+            add_tags=args.add_tag,
+            remove_tags=args.remove_tag,
         )
     
     def _handle_mark(self, args: Namespace) -> bool:
-        return self.tasks_manager.mark(
-            id=args.id, new_status=args.new_status
+        return self.tasks_manager.mark_many(
+            ids=args.ids, new_status=args.new_status
         )
     
     def _handle_delete(self, args: Namespace) -> bool:
@@ -259,6 +265,7 @@ class Parser():
         ids = self.tasks_manager.list(
             filt_status=args.status, 
             filt_priority=args.priority,
+            filt_tags=args.tag,
             filt_overdue=args.overdue,
             sort_by=args.sort, 
             reverse=args.reverse

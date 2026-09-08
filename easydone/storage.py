@@ -1,13 +1,13 @@
 import json
 import os
-import sys
 import shutil
+import sys
 import tempfile
-from datetime import datetime
-from pathlib import Path
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from datetime import datetime
 from enum import Enum
+from pathlib import Path
+from typing import Any, Optional
 
 from . import __version__
 
@@ -64,7 +64,7 @@ class LoadingResult:
     schema_mismatch: bool = False
     app_mismatch: bool = False
 
-class JSONHandler():
+class JSONHandler:
     def __init__(self, json_file: Optional[str] = None):
         """
         Initialize a storage handler with a stable absolute data file path.

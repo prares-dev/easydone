@@ -2,10 +2,11 @@ import builtins
 import importlib
 import sys
 import types
+
 import pytest
 
 from easydone import __version__
-from easydone.storage import LoadStatus, CURRENT_SCHEMA_VERSION, LoadingResult
+from easydone.storage import CURRENT_SCHEMA_VERSION, LoadingResult, LoadStatus
 
 
 def _reload_format_module(monkeypatch, *, rich_available):
