@@ -15,6 +15,7 @@ def _reload_format_module(monkeypatch, *, rich_available):
         console_mod = types.ModuleType("rich.console")
         table_mod = types.ModuleType("rich.table")
         text_mod = types.ModuleType("rich.text")
+        box_mod = types.ModuleType("rich.box")
 
         class FakeConsole:
             instances = []
@@ -27,14 +28,18 @@ def _reload_format_module(monkeypatch, *, rich_available):
                 self.rendered.append(obj)
 
         class FakeTable:
-            def __init__(self, show_header=True, header_style=None):
+            def __init__(self, show_header=True, header_style=None, show_lines=False, box=None):
                 self.show_header = show_header
                 self.header_style = header_style
+                self.show_lines = show_lines
+                self.box = box
                 self.columns = []
+                self.column_options = []
                 self.rows = []
 
             def add_column(self, *args, **kwargs):
                 self.columns.append(args[0])
+                self.column_options.append(kwargs)
 
             def add_row(self, *row):
                 self.rows.append(row)
@@ -56,11 +61,13 @@ def _reload_format_module(monkeypatch, *, rich_available):
         console_mod.Console = FakeConsole # type: ignore
         table_mod.Table = FakeTable # type: ignore
         text_mod.Text = FakeText # type: ignore
+        box_mod.SIMPLE_HEAD = object()
 
         monkeypatch.setitem(sys.modules, "rich", rich_mod)
         monkeypatch.setitem(sys.modules, "rich.console", console_mod)
         monkeypatch.setitem(sys.modules, "rich.table", table_mod)
         monkeypatch.setitem(sys.modules, "rich.text", text_mod)
+        monkeypatch.setitem(sys.modules, "rich.box", box_mod)
     else:
         real_import = builtins.__import__
 
@@ -163,7 +170,11 @@ def test_print_table_uses_rich_when_available(monkeypatch):
     assert len(console.rendered) == 1
 
     table = console.rendered[0]
+    assert table.show_lines is True
+    assert table.box is not None
     assert table.columns == ["ID", "Description", "Tags", "Priority", "Status", "Due", ":date:Created", ":pencil:Updated"]
+    assert table.column_options[1]["overflow"] == "fold"
+    assert table.column_options[2]["overflow"] == "fold"
     assert len(table.rows) == 1
     row = table.rows[0]
     assert row[0] == "123"
