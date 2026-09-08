@@ -4,8 +4,10 @@ This module centralizes all user-facing presentation logic.
 It uses Rich when available, otherwise falls back to plain text.
 """
 
-from typing import Dict, List, Any, Optional, TypedDict
+from __future__ import annotations
 
+import hashlib
+from typing import Dict, List, Any, Optional, TypedDict
 from .logic import time_to_due
 from .storage import LoadingResult, LoadStatus, CURRENT_SCHEMA_VERSION
 from . import __version__
@@ -40,6 +42,21 @@ except ImportError:
 
 _console = Console() if RICH_AVAILABLE else None # type: ignore
 
+TAG_STYLES = (
+    "bright_blue",
+    "bright_cyan",
+    "bright_green",
+    "bright_magenta",
+    "bright_yellow",
+)
+
+
+def tag_style(tag: str) -> str:
+    """Return a stable Rich style for a tag value."""
+    digest = hashlib.sha256(tag.encode("utf-8")).digest()
+    style_index = int.from_bytes(digest[:4], "big") % len(TAG_STYLES)
+    return TAG_STYLES[style_index]
+
 
 # ----------------------------------------------------------------------------
 # Core rendering helpers
@@ -58,7 +75,7 @@ def _print(text: str, style: Optional[str] = None) -> None:
     else:
         print(text)
 
-def _render_parts(parts: List[MyText]) -> None:
+def _render_parts(parts: List[MyText], return_val: bool = False) -> Optional[str | Text]:
     """Render multiple styled text parts.
 
     If Rich is available, each part is rendered with its style.
@@ -74,12 +91,17 @@ def _render_parts(parts: List[MyText]) -> None:
         _render_parts(parts)
     """
     if RICH_AVAILABLE:
-        text_obj = Text() # type: ignore
+        text_obj = Text("") # type: ignore
         for part in parts:
             text_obj.append(part.get("text", ""), style=part.get("style"))
+        if return_val:
+            return text_obj
         _console.print(text_obj)  # type: ignore
     else:
-        print("".join(part.get("text", "") for part in parts))
+        result = "".join(part.get("text", "") for part in parts)
+        if return_val:
+            return result
+        print(result)
 
 def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
     """Plain text table renderer."""
@@ -91,16 +113,20 @@ def _plain_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None
         desc = task.get('description', '-')
         prior = task.get('priority', '-')
         stat = task.get('status', '-')
-        create = task.get('created-at', '-')
-        due = task.get('due', '-')
-        due = '-' if due is None else due
-        update = task.get('updated-at', '-')
-        update = '-' if update is None else update
+        tags = task.get('tags', '[]')
 
         print(f"┌─ ID: {task_id} ... \"{desc}\"")
         print(f"│  ├── Priority: {prior}")
-        print(f"│  {'├──' if not no_dates else '└──'} Status: {stat}")
+        print(f"│  ├── Status: {stat}")
+        print(f"│  {'├──' if not no_dates else '└──'} Tags: {tags}")
+
         if not no_dates:
+            create = task.get('created-at', '-')
+            due = task.get('due', '-')
+            due = '-' if due is None else due
+            update = task.get('updated-at', '-')
+            update = '-' if update is None else update
+
             print(f"│  ├── Due: {due}")
             print(f"│  ├── Created at: {create}")
             print(f"│  └── Updated at: {update}")
@@ -146,6 +172,15 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         desc = task.get('description', '-')
         prior = task.get('priority', '-')
         stat = task.get('status', '-')
+        tags = task.get('tags', [])
+
+        if tags:
+            text_obj = Text("") # type: ignore
+            for tag in tags:
+                text_obj.append(f"[{tag}] ", style=tag_style(tag))
+            text_obj.append(f"{desc}")
+        else:
+            text_obj = Text(desc, overflow='ellipsis') # type: ignore
 
         if not no_dates:
             create = task.get('created-at', '-')
@@ -153,9 +188,10 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
             due = '-' if due is None else due
             update = task.get('updated-at', '-')
             update = '-' if update is None else update
+
             table.add_row(
                 task_id,
-                Text(desc, overflow='ellipsis'), # type: ignore
+                text_obj, # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
                 Text(due, style=due_style(task)),   # type: ignore
@@ -165,7 +201,7 @@ def _rich_table(tasks: Dict[str, dict], ids: List[str], no_dates: bool) -> None:
         else:
             table.add_row(
                 task_id,
-                Text(desc, overflow='ellipsis'), # type: ignore
+                text_obj, # type: ignore
                 Text(prior, style=priority_styles.get(prior, "")), # type: ignore
                 Text(stat, style=status_styles.get(stat, "")), # type: ignore
             )

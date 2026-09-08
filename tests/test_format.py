@@ -44,6 +44,11 @@ def _reload_format_module(monkeypatch, *, rich_available):
                 self.text = text
                 self.overflow = overflow
                 self.style = style
+                self.parts = []
+
+            def append(self, text, style=None):
+                self.parts.append((text, style))
+                self.text += text
 
             def __str__(self):
                 return self.text
@@ -82,6 +87,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
             "description": "read a book",
             "status": "not-done",
             "priority": "low",
+            "tags": ["work", "urgent"],
             "due": "2026-08-30",
             "created-at": "2026-08-22",
             "updated-at": None,
@@ -97,6 +103,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     assert "ID: 123 ... \"read a book\"" in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
+    assert "Tags: ['work', 'urgent']" in output
     assert "Due: 2026-08-30" in output
     assert "Created at: 2026-08-22" in output
     assert "Updated at: -" in output
@@ -140,6 +147,7 @@ def test_print_table_uses_rich_when_available(monkeypatch):
             "description": "read a book",
             "status": "done",
             "priority": "urgent",
+            "tags": ["work", "urgent"],
             "due": "2026-08-30",
             "created-at": "2026-08-22",
             "updated-at": "2026-08-23",
@@ -155,16 +163,38 @@ def test_print_table_uses_rich_when_available(monkeypatch):
     assert len(console.rendered) == 1
 
     table = console.rendered[0]
-    assert table.columns == ["ID", "Description", "Priority", "Status", "Due", "Created", "Updated"]
+    assert table.columns == ["ID", "Description", "Priority", "Status", "Due", ":date:Created", ":pencil:Updated"]
     assert len(table.rows) == 1
     row = table.rows[0]
     assert row[0] == "123"
-    assert row[1].text == "read a book"
+    assert row[1].text == "[work] [urgent] read a book"
+    assert row[1].parts[0] == ("[work] ", format_module.tag_style("work"))
+    assert row[1].parts[1] == ("[urgent] ", format_module.tag_style("urgent"))
     assert row[2].text == "urgent"
     assert row[3].text == "done"
     assert row[4].text == "2026-08-30"
     assert row[5] == "2026-08-22"
     assert row[6] == "2026-08-23"
+
+
+def test_rich_tags_have_stable_styles(monkeypatch):
+    """The same tag gets the same style in every rendered task."""
+    format_module = _reload_format_module(monkeypatch, rich_available=True)
+    tasks = {
+        "123": {"description": "first", "tags": ["work", "urgent"]},
+        "456": {"description": "second", "tags": ["urgent", "home"]},
+    }
+
+    format_module.print_table(tasks, ["123", "456"], no_dates=True)
+
+    table = sys.modules["rich.console"].Console.instances[-1].rendered[-1]
+    first_tags = table.rows[0][1].parts[:2]
+    second_tags = table.rows[1][1].parts[:2]
+
+    assert first_tags[1][1] == second_tags[0][1]
+    assert first_tags[0][1] == format_module.tag_style("work")
+    assert second_tags[1][1] == format_module.tag_style("home")
+    assert format_module.tag_style("work") == format_module.tag_style("work")
 
 
 def test_print_table_uses_rich_with_no_dates(monkeypatch):
