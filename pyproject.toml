@@ -42,6 +42,7 @@ target-version = "py39"
 line-length = 100
 output-format = "grouped" # (groups by file), default is 'full'
 show-fixes = true
+extend-exclude = ["tests/*", "scripts/*"]
 cache-dir = "./.cache/ruff"
 
 [tool.ruff.lint]
