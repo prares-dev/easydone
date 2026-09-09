@@ -60,10 +60,10 @@ def _reload_format_module(monkeypatch, *, rich_available):
             def __str__(self):
                 return self.text
 
-        console_mod.Console = FakeConsole # type: ignore
-        table_mod.Table = FakeTable # type: ignore
-        text_mod.Text = FakeText # type: ignore
-        box_mod.SIMPLE_HEAD = object() # type: ignore
+        console_mod.Console = FakeConsole  # type: ignore
+        table_mod.Table = FakeTable  # type: ignore
+        text_mod.Text = FakeText  # type: ignore
+        box_mod.SIMPLE_HEAD = object()  # type: ignore
 
         monkeypatch.setitem(sys.modules, "rich", rich_mod)
         monkeypatch.setitem(sys.modules, "rich.console", console_mod)
@@ -83,9 +83,11 @@ def _reload_format_module(monkeypatch, *, rich_available):
     sys.modules.pop("easydone.format", None)
     return importlib.import_module("easydone.format")
 
+
 # ================================================================
 # print_table tests
 # ================================================================
+
 
 def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     """When Rich is missing, output should use the plain tree-style table."""
@@ -109,7 +111,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
 
     # Check for the tree-style table format
     assert "EASYDONE: Task Tracker" in output
-    assert "ID: 123 ... \"read a book\"" in output
+    assert 'ID: 123 ... "read a book"' in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
     assert "Tags: [work] [urgent]" in output
@@ -123,7 +125,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     output = capsys.readouterr().out
 
     assert "EASYDONE: Task Tracker" in output
-    assert "ID: 123 ... \"read a book\"" in output
+    assert 'ID: 123 ... "read a book"' in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
     assert "Due" not in output
@@ -174,7 +176,16 @@ def test_print_table_uses_rich_when_available(monkeypatch):
     table = console.rendered[0]
     assert table.show_lines is True
     assert table.box is not None
-    assert table.columns == ["ID", "Description", "Tags", "Priority", "Status", "Due", ":date:Created", ":pencil:Updated"]
+    assert table.columns == [
+        "ID",
+        "Description",
+        "Tags",
+        "Priority",
+        "Status",
+        "Due",
+        ":date:Created",
+        ":pencil:Updated",
+    ]
     assert table.column_options[1]["overflow"] == "fold"
     assert table.column_options[2]["overflow"] == "fold"
     assert len(table.rows) == 1
@@ -239,6 +250,7 @@ def test_print_table_uses_rich_with_no_dates(monkeypatch):
 # describe_load_result tests
 # ================================================================
 
+
 def test_describe_load_result_success(monkeypatch, capsys):
     """describe_load_result should print a success message."""
     format_module = _reload_format_module(monkeypatch, rich_available=False)
@@ -263,7 +275,7 @@ def test_describe_load_result_missing(monkeypatch, capsys):
     result = LoadingResult(
         tasks={},
         status=LoadStatus.MISSING,
-        file_path="/path/to/tasks.json", # type: ignore
+        file_path="/path/to/tasks.json",  # type: ignore
     )
 
     format_module.describe_load_result(result)
@@ -279,8 +291,8 @@ def test_describe_load_result_corrupted(monkeypatch, capsys):
     result = LoadingResult(
         tasks={},
         status=LoadStatus.CORRUPTED,
-        file_path="/path/to/tasks.json", # type: ignore
-        backup_path="/path/to/tasks.corrupted-20260831.json", # type: ignore
+        file_path="/path/to/tasks.json",  # type: ignore
+        backup_path="/path/to/tasks.corrupted-20260831.json",  # type: ignore
         backup_exception=None,
     )
 
@@ -298,7 +310,7 @@ def test_describe_load_result_corrupted_without_backup(monkeypatch, capsys):
     result = LoadingResult(
         tasks={},
         status=LoadStatus.CORRUPTED,
-        file_path="/path/to/tasks.json", # type: ignore
+        file_path="/path/to/tasks.json",  # type: ignore
         backup_path=None,
         backup_exception=exc,
     )
@@ -370,6 +382,7 @@ def test_describe_load_result_both_mismatches(monkeypatch, capsys):
 # report_backup tests
 # ================================================================
 
+
 def test_report_backup_success(monkeypatch, capsys):
     """report_backup should print success message."""
     format_module = _reload_format_module(monkeypatch, rich_available=False)
@@ -394,6 +407,7 @@ def test_report_backup_failure(monkeypatch, capsys):
 # ================================================================
 # confirm_deletion tests
 # ================================================================
+
 
 def test_confirm_deletion_returns_true_on_y(monkeypatch):
     """confirm_deletion should return True when user types 'y'."""

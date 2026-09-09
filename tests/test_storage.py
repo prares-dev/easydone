@@ -1,14 +1,12 @@
-"""
-
-┌─────────────────────────────────────────────────────────────────────┐
+"""┌─────────────────────────────────────────────────────────────────────┐
 │ FIXTURES: The "tools" pytest gives us                               │
-├─────────────────────────────────────────────────────────────────────┤ 
+├─────────────────────────────────────────────────────────────────────┤
 │                                                                     │
 │ tmp_path    - Creates a temporary directory that's cleaned up.      │
 │               Use it for file operations without affecting          │
 │               your real data.                                       │
 │               Example: json_file = tmp_path / "tasks.json"          │
-└─────────────────────────────────────────────────────────────────────┘
+└─────────────────────────────────────────────────────────────────────┘.
 
 """
 
@@ -48,7 +46,8 @@ def tasks() -> dict[str, dict]:
 
 def _write_payload(json_file, **overrides):
     """Write a well-formed payload, letting callers override individual fields
-    (schema_version, app_version, tasks, saved_at) to trigger specific paths."""
+    (schema_version, app_version, tasks, saved_at) to trigger specific paths.
+    """
     payload = {
         "schema_version": CURRENT_SCHEMA_VERSION,
         "app_version": __version__,
@@ -72,6 +71,7 @@ def test_loading_results_do_not_share_default_tasks():
 # ===========
 # Happy path
 # ===========
+
 
 def test_load_returns_existing_tasks_with_no_warnings(tmp_path, tasks):
     """A well-formed, up-to-date file should load cleanly: no corruption, no warning."""
@@ -116,6 +116,7 @@ def test_save_then_load_round_trips_without_warnings(tmp_path, tasks):
 # Missing file (not corrupted)
 # ==========================
 
+
 def test_load_returns_empty_result_when_file_is_missing(tmp_path):
     """A missing file is a normal first-run case, not corruption."""
     missing_file = tmp_path / "missing_tasks.json"
@@ -131,6 +132,7 @@ def test_load_returns_empty_result_when_file_is_missing(tmp_path):
 # ==========================
 # Corruption: must NOT silently look like "no tasks yet"
 # ==========================
+
 
 def test_load_flags_malformed_json_as_corrupted(tmp_path):
     """Invalid JSON must be reported as corrupted, not treated as an empty task list."""
@@ -157,8 +159,7 @@ def test_load_flags_non_dict_payload_as_corrupted(tmp_path):
 
 
 def test_load_flags_wrapperless_dict_as_corrupted(tmp_path, tasks):
-    """
-    Pre-schema files (a bare {id: task} dict with no metadata wrapper) are no
+    """Pre-schema files (a bare {id: task} dict with no metadata wrapper) are no
     longer auto-detected and loaded. There has been no release that ever wrote
     this shape as its saved format, so this isn't a real migration path yet -
     treating it as corrupted (rather than guessing at a migration) is the
@@ -190,6 +191,7 @@ def test_load_flags_non_dict_tasks_field_as_corrupted(tmp_path):
 # ==========================
 # Warnings: tasks ARE usable, but flag for review
 # ==========================
+
 
 def test_load_warns_on_newer_schema_version(tmp_path, tasks):
     """A schema from a future version of the app should load but warn, not discard data."""
@@ -235,7 +237,8 @@ def test_load_warns_on_app_version_mismatch(tmp_path, tasks):
 
 def test_load_app_version_mismatch_dont_overrides_schema_warning_message(tmp_path, tasks):
     """
-    If both schema and app versions mismatches then both warnings should be recorded in the msg.
+    If both schema and app versions mismatches
+    then both warnings should be recorded in the msg.
     """
     json_file = tmp_path / "tasks.json"
     _write_payload(
@@ -261,11 +264,12 @@ def test_load_app_version_mismatch_dont_overrides_schema_warning_message(tmp_pat
 # These cover the refactored _backup() and its integration
 # ================================================================
 
+
 def test_save_creates_backup_and_returns_dict_with_path_when_file_exists(tmp_path, tasks):
     """If tasks.json already exists, save() should:
     - Copy it to tasks.json.bak
     - Return a dict with backup_path set (and backup_exception None)
-    - Write the new data to the main file
+    - Write the new data to the main file.
     """
     json_file = tmp_path / "tasks.json"
     initial_content = {"some": "old data"}
@@ -292,7 +296,7 @@ def test_save_returns_dict_with_none_path_and_exception_when_file_does_not_exist
     """If tasks.json does not exist, save() should:
     - NOT create a .bak file (copy2 raises FileNotFoundError)
     - Return a dict with backup_path=None and backup_exception set to FileNotFoundError
-    - Still write the main file correctly
+    - Still write the main file correctly.
     """
     json_file = tmp_path / "tasks.json"
     assert not json_file.exists()
@@ -310,11 +314,13 @@ def test_save_returns_dict_with_none_path_and_exception_when_file_does_not_exist
     assert isinstance(save_result["backup_exception"], FileNotFoundError)
 
 
-def test_save_backup_failure_does_not_block_write_and_returns_dict_with_exception(tmp_path, tasks, monkeypatch):
+def test_save_backup_failure_does_not_block_write_and_returns_dict_with_exception(
+    tmp_path, tasks, monkeypatch
+):
     """If shutil.copy2 fails during backup (e.g. PermissionError), save() should:
     - Still write the main file
     - NOT leave a partial .bak file behind
-    - Return a dict with backup_path=None and backup_exception set to the caught error
+    - Return a dict with backup_path=None and backup_exception set to the caught error.
     """
     json_file = tmp_path / "tasks.json"
     initial_content = {"some": "old data"}
@@ -347,7 +353,7 @@ def test_load_corrupted_file_quarantine_failure_returns_backup_path_none(tmp_pat
     - NOT crash
     - Still return status CORRUPTED
     - Set backup_path to None
-    - Return empty tasks
+    - Return empty tasks.
     """
     json_file = tmp_path / "tasks.json"
     json_file.write_text("{not valid", encoding="utf-8")

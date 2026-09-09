@@ -17,6 +17,7 @@ from .storage import CURRENT_SCHEMA_VERSION, LoadingResult, LoadStatus
 # Types
 # ----------------------------------------------------------------------------
 
+
 class MyText(TypedDict, total=False):
     """A piece of text with optional style information.
 
@@ -24,6 +25,7 @@ class MyText(TypedDict, total=False):
         {"text": "Warning: ", "style": "yellow"}
         {"text": "file not found"}
     """
+
     text: str
     style: str | None
 
@@ -37,11 +39,12 @@ try:
     from rich.console import Console
     from rich.table import Table
     from rich.text import Text
+
     RICH_AVAILABLE = True
 except ImportError:
     RICH_AVAILABLE = False
 
-_console = Console() if RICH_AVAILABLE else None # type: ignore
+_console = Console() if RICH_AVAILABLE else None  # type: ignore
 
 TAG_STYLES = (
     "bright_blue",
@@ -78,6 +81,7 @@ def tag_style(tag: str) -> str:
 # Core rendering helpers
 # ----------------------------------------------------------------------------
 
+
 def _print(text: str, style: str | None = None) -> None:
     """Print a single piece of text with optional styling if Rich is available.
 
@@ -91,6 +95,7 @@ def _print(text: str, style: str | None = None) -> None:
     else:
         print(text)
 
+
 def _render_parts(parts: list[MyText], return_val: bool = False) -> str | Text | None:
     """Render multiple styled text parts.
 
@@ -100,14 +105,14 @@ def _render_parts(parts: list[MyText], return_val: bool = False) -> str | Text |
     This is useful for complex messages with multiple styled segments.
 
     Example:
-        parts = [
+    parts = [
             {"text": "Warning: ", "style": "yellow"},
-            {"text": "Task not found", "style": "bold red"},
-        ]
-        _render_parts(parts)
+        {"text": "Task not found", "style": "bold red"},
+    ]
+    _render_parts(parts)
     """
     if RICH_AVAILABLE:
-        text_obj = Text("") # type: ignore
+        text_obj = Text("")  # type: ignore
         for part in parts:
             text_obj.append(part.get("text", ""), style=part.get("style"))
         if return_val:
@@ -119,6 +124,7 @@ def _render_parts(parts: list[MyText], return_val: bool = False) -> str | Text |
             return result
         print(result)
 
+
 def _plain_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
     """Plain text table renderer."""
     print("┌────────────────────────┐")
@@ -126,27 +132,28 @@ def _plain_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None
     print("└────────────────────────┘")
     for task_id in ids:
         task = tasks[task_id]
-        desc = task.get('description', '-')
-        prior = task.get('priority', '-')
-        stat = task.get('status', '-')
-        tags = task.get('tags', [])
+        desc = task.get("description", "-")
+        prior = task.get("priority", "-")
+        stat = task.get("status", "-")
+        tags = task.get("tags", [])
         tag_text = " ".join(f"[{tag}]" for tag in tags) or "-"
 
-        print(f"┌─ ID: {task_id} ... \"{desc}\"")
+        print(f'┌─ ID: {task_id} ... "{desc}"')
         print(f"│  ├── Priority: {prior}")
         print(f"│  ├── Status: {stat}")
         print(f"│  {'├──' if not no_dates else '└──'} Tags: {tag_text}")
 
         if not no_dates:
-            create = task.get('created-at', '-')
-            due = task.get('due', '-')
-            due = '-' if due is None else due
-            update = task.get('updated-at', '-')
-            update = '-' if update is None else update
+            create = task.get("created-at", "-")
+            due = task.get("due", "-")
+            due = "-" if due is None else due
+            update = task.get("updated-at", "-")
+            update = "-" if update is None else update
 
             print(f"│  ├── Due: {due}")
             print(f"│  ├── Created at: {create}")
             print(f"│  └── Updated at: {update}")
+
 
 def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
     """Rich table renderer."""
@@ -154,10 +161,16 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
         show_header=True,
         header_style="bold white",
         show_lines=True,
-        box=box.SIMPLE_HEAD, # type: ignore
-    ) # type: ignore
-    table.add_column("ID", header_style = "gold1", style="gold1", no_wrap=True, justify="center")
-    table.add_column("Description", header_style=" white", style="italic white", min_width=30, overflow="fold")
+        box=box.SIMPLE_HEAD,  # type: ignore
+    )  # type: ignore
+    table.add_column("ID", header_style="gold1", style="gold1", no_wrap=True, justify="center")
+    table.add_column(
+        "Description",
+        header_style=" white",
+        style="italic white",
+        min_width=30,
+        overflow="fold",
+    )
     table.add_column("Tags", overflow="fold")
     table.add_column("Priority", no_wrap=True, justify="center")
     table.add_column("Status", no_wrap=True, justify="center")
@@ -177,28 +190,28 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
         "in-progress": "cyan",
         "done": "green",
     }
-    
+
     def due_style(task: dict) -> str:
         time = time_to_due(task)
         if not time:
-            return ''
-        
+            return ""
+
         if time.total_seconds() < 0:
             return "bold red"
         elif time.days < 5:
             return "bright_yellow"
         else:
-            return 'dim'
+            return "dim"
 
     for task_id in ids:
         task = tasks[task_id]
-        desc = task.get('description', '-')
-        prior = task.get('priority', '-')
-        stat = task.get('status', '-')
-        tags = task.get('tags', [])
+        desc = task.get("description", "-")
+        prior = task.get("priority", "-")
+        stat = task.get("status", "-")
+        tags = task.get("tags", [])
 
-        description_text = Text(desc, overflow='ellipsis') # type: ignore
-        tags_text = Text("") # type: ignore
+        description_text = Text(desc, overflow="ellipsis")  # type: ignore
+        tags_text = Text("")  # type: ignore
         if tags:
             for index, tag in enumerate(tags):
                 if index:
@@ -208,29 +221,29 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
             tags_text.append("-")
 
         if not no_dates:
-            create = task.get('created-at', '-')
-            due = task.get('due', '-')
-            due = '-' if due is None else due
-            update = task.get('updated-at', '-')
-            update = '-' if update is None else update
+            create = task.get("created-at", "-")
+            due = task.get("due", "-")
+            due = "-" if due is None else due
+            update = task.get("updated-at", "-")
+            update = "-" if update is None else update
 
             table.add_row(
                 task_id,
-                description_text, # type: ignore
-                tags_text, # type: ignore
-                Text(prior, style=priority_styles.get(prior, "")), # type: ignore
-                Text(stat, style=status_styles.get(stat, "")), # type: ignore
-                Text(due, style=due_style(task)),   # type: ignore
+                description_text,  # type: ignore
+                tags_text,  # type: ignore
+                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
+                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+                Text(due, style=due_style(task)),  # type: ignore
                 create,
                 update,
             )
         else:
             table.add_row(
                 task_id,
-                description_text, # type: ignore
-                tags_text, # type: ignore
-                Text(prior, style=priority_styles.get(prior, "")), # type: ignore
-                Text(stat, style=status_styles.get(stat, "")), # type: ignore
+                description_text,  # type: ignore
+                tags_text,  # type: ignore
+                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
+                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
             )
 
     _console.print(table)  # type: ignore
@@ -240,13 +253,14 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
 # Public API
 # ----------------------------------------------------------------------------
 
+
 def print_table(tasks: dict[str, dict], ids: list[str], no_dates: bool = False) -> None:
     """Render a task table with Rich or plain text fallback."""
     if not ids:
         message = "No tasks exist." if not tasks else "No tasks match the selected filters."
-        _print(message, style='yellow')
+        _print(message, style="yellow")
         return
-    
+
     if not RICH_AVAILABLE:
         _plain_table(tasks, ids, no_dates)
     else:
@@ -274,25 +288,27 @@ def describe_load_result(result: LoadingResult) -> None:
         )
     if result.app_mismatch:
         lines.append(
-            f"written by EasyDone {result.found_app_version} "
-            f"(running Easydone {__version__})"
+            f"written by EasyDone {result.found_app_version} (running Easydone {__version__})"
         )
 
     if lines:
         msg = "Warning: " + " and ".join(lines) + "."
 
     if msg:
-        _print(msg, style='yellow')
+        _print(msg, style="yellow")
     else:
-        _print("Tasks loaded successfully.", style='green')
+        _print("Tasks loaded successfully.", style="green")
 
 
 def report_backup(backup_result: dict[str, Any]) -> None:
     """Report whether a backup succeeded or failed."""
-    if backup_result['backup_path']:
-        _print("Backup succesfully done", style='green')
+    if backup_result["backup_path"]:
+        _print("Backup succesfully done", style="green")
     else:
-        _print(f"Warning: Couldn't backup ({backup_result['backup_exception']})", style='yellow')
+        _print(
+            f"Warning: Couldn't backup ({backup_result['backup_exception']})",
+            style="yellow",
+        )
 
 
 def confirm_deletion(task_id: str, description: str, max_attempts: int = 3) -> bool:
@@ -302,7 +318,7 @@ def confirm_deletion(task_id: str, description: str, max_attempts: int = 3) -> b
     # Build the prompt once – as a list of MyText parts
     prompt_parts: list[MyText] = [
         {"text": "Are you sure about deleting task "},
-        {"text": f"{task_id}: \"{description}\"", "style": "yellow"},
+        {"text": f'{task_id}: "{description}"', "style": "yellow"},
         {"text": " ("},
         {"text": "y", "style": "yellow"},
         {"text": "/n): "},
@@ -317,20 +333,27 @@ def confirm_deletion(task_id: str, description: str, max_attempts: int = 3) -> b
             _render_parts([{"text": "aborting deletion attempt...", "style": "yellow"}])
             raise
 
-        if response in ['y', 'yes']:
+        if response in ["y", "yes"]:
             return True
-        elif response in ['n', 'no']:
+        elif response in ["n", "no"]:
             return False
         else:
-            _render_parts([
-                {"text": "Invalid input. ", "style": "red"},
-                {"text": "Please enter '"},
-                {"text": "y", "style": "yellow"},
-                {"text": "' or 'n'."},
-            ])
+            _render_parts(
+                [
+                    {"text": "Invalid input. ", "style": "red"},
+                    {"text": "Please enter '"},
+                    {"text": "y", "style": "yellow"},
+                    {"text": "' or 'n'."},
+                ]
+            )
             attempts += 1
 
-    _render_parts([
-        {"text": f"Unable to get valid user response after {max_attempts} attempts. Aborting deletion attempt...", "style": "yellow"}
-    ])
+    _render_parts(
+        [
+            {
+                "text": f"Unable to get valid user response after {max_attempts} attempts. Aborting deletion attempt...",  # ruff: ignore[E501]
+                "style": "yellow",
+            }
+        ]
+    )
     return False

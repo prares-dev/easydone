@@ -39,33 +39,36 @@ from easydone.logic import TasksManager, normalize_due_date
 # Fixtures
 # ----------------------------------------------------------------------------
 
+
 @pytest.fixture
 def manager():
     """TasksManager with 3 tasks at different dates for sorting tests."""
     date = datetime(2026, 9, 1)
-    return TasksManager({
-        "123": {
-            "description": "read a book",
-            "status": "not-done",
-            "priority": "low",
-            "created-at": str(date + timedelta(days=3)).split(" ")[0],
-            "updated-at": str(date + timedelta(days=9)).split(" ")[0]
-        },
-        "456": {
-            "description": "write code",
-            "status": "done",
-            "priority": "normal",
-            "created-at": str(date).split(" ")[0],
-            "updated-at": str(date + timedelta(days=4)).split(" ")[0]
-        },
-        "111": {
-            "description": "go supermarket",
-            "status": "in-progress",
-            "priority": "urgent",
-            "created-at": str(date + timedelta(days=5)).split(" ")[0],
-            "updated-at": str(date + timedelta(days=7)).split(" ")[0]
+    return TasksManager(
+        {
+            "123": {
+                "description": "read a book",
+                "status": "not-done",
+                "priority": "low",
+                "created-at": str(date + timedelta(days=3)).split(" ")[0],
+                "updated-at": str(date + timedelta(days=9)).split(" ")[0],
+            },
+            "456": {
+                "description": "write code",
+                "status": "done",
+                "priority": "normal",
+                "created-at": str(date).split(" ")[0],
+                "updated-at": str(date + timedelta(days=4)).split(" ")[0],
+            },
+            "111": {
+                "description": "go supermarket",
+                "status": "in-progress",
+                "priority": "urgent",
+                "created-at": str(date + timedelta(days=5)).split(" ")[0],
+                "updated-at": str(date + timedelta(days=7)).split(" ")[0],
+            },
         }
-    })
+    )
 
 
 @pytest.fixture
@@ -87,18 +90,20 @@ def empty_parser(empty_manager):
 # Helpers
 # ----------------------------------------------------------------------------
 
+
 def extract_ids(output: str) -> list[str]:
     """Extract task IDs from plain table output."""
-    return re.findall(r'┌─ ID: (\w+)', output)
+    return re.findall(r"┌─ ID: (\w+)", output)
 
 
 # ----------------------------------------------------------------------------
 # Version / Help
 # ----------------------------------------------------------------------------
 
+
 def test_version_output(empty_parser, capsys):
     with pytest.raises(SystemExit):
-        empty_parser.main_parser.parse_args(['-v'])
+        empty_parser.main_parser.parse_args(["-v"])
         assert __version__ in capsys.readouterr().out
 
 
@@ -111,6 +116,7 @@ def test_no_args_shows_help(empty_parser, capsys, monkeypatch):
 # ----------------------------------------------------------------------------
 # Parser Configuration
 # ----------------------------------------------------------------------------
+
 
 def test_new_parser_defaults(empty_parser):
     args = empty_parser.main_parser.parse_args(["new", "test"])
@@ -185,11 +191,14 @@ def test_update_without_due_date_does_not_change_due_date(manager):
 def test_update_adds_and_removes_tags(manager):
     manager.tasks["123"]["tags"] = ["work"]
 
-    assert manager.update(
-        "123",
-        add_tags=["urgent", "work"],
-        remove_tags=["work"],
-    ) is True
+    assert (
+        manager.update(
+            "123",
+            add_tags=["urgent", "work"],
+            remove_tags=["work"],
+        )
+        is True
+    )
     assert manager.tasks["123"]["tags"] == ["urgent"]
 
 
@@ -224,10 +233,17 @@ def test_update_ignores_redundant_tag_changes(manager):
 
 
 def test_update_parser_accepts_multiple_tag_options(parser):
-    args = parser.main_parser.parse_args([
-        "update", "123", "--add-tag", "work", "urgent",
-        "--remove-tag", "old",
-    ])
+    args = parser.main_parser.parse_args(
+        [
+            "update",
+            "123",
+            "--add-tag",
+            "work",
+            "urgent",
+            "--remove-tag",
+            "old",
+        ]
+    )
 
     assert args.add_tag == ["work", "urgent"]
     assert args.remove_tag == ["old"]
@@ -261,19 +277,14 @@ def test_update_many_rolls_back_if_one_task_fails(manager):
 
 
 def test_bulk_command_parsers_accept_multiple_ids(parser):
-    update_args = parser.main_parser.parse_args(
-        ["update", "123", "456", "--description", "shared"]
-    )
-    mark_args = parser.main_parser.parse_args(
-        ["mark", "123", "456", "done"]
-    )
-    list_args = parser.main_parser.parse_args(
-        ["list", "--tag", "work", "planning"]
-    )
+    update_args = parser.main_parser.parse_args(["update", "123", "456", "--description", "shared"])
+    mark_args = parser.main_parser.parse_args(["mark", "123", "456", "done"])
+    list_args = parser.main_parser.parse_args(["list", "--tag", "work", "planning"])
 
     assert update_args.ids == ["123", "456"]
     assert mark_args.ids == ["123", "456"]
     assert list_args.tag == ["work", "planning"]
+
 
 def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
@@ -284,10 +295,12 @@ def test_global_no_dates_flag(empty_parser):
 # 3. Handlers → Manager Integration
 # ----------------------------------------------------------------------------
 
+
 def test_update_handler_requires_change(parser, monkeypatch):
     monkeypatch.setattr("sys.argv", ["easydone", "update", "123"])
     with pytest.raises(SystemExit):
         parser.start_parsing()
+
 
 def test_delete_handler_deduplicates(parser):
     args = parser.main_parser.parse_args(["delete", "123", "456", "123", "-f"])
@@ -302,6 +315,7 @@ def test_delete_handler_deduplicates(parser):
 
     assert called == [["123", "456"]]  # deduped
 
+
 def test_search_with_multiple_terms(parser):
     args = parser.main_parser.parse_args(["search", "go", "supermarket"])
     called = []
@@ -315,6 +329,7 @@ def test_search_with_multiple_terms(parser):
 
     assert called == [["go", "supermarket"]]
 
+
 def test_search_with_no_dates(parser, capsys):
     """Search with --no-dates should omit dates from output."""
     args = parser.main_parser.parse_args(["--no-dates", "search", "book"])
@@ -327,6 +342,7 @@ def test_search_with_no_dates(parser, capsys):
 # ----------------------------------------------------------------------------
 # Sorting (Logic)
 # ----------------------------------------------------------------------------
+
 
 def test_list_sorting_logic(manager):
     """Sorting at the manager level works correctly."""
@@ -350,6 +366,7 @@ def test_list_sorting_logic(manager):
 # ----------------------------------------------------------------------------
 # Return Values (Mutation Flags)
 # ----------------------------------------------------------------------------
+
 
 def test_mutation_flags(empty_parser, parser, monkeypatch):
     # Read-only commands return False
@@ -380,6 +397,7 @@ def test_mutation_flags(empty_parser, parser, monkeypatch):
 # User Interaction (Confirmation)
 # ----------------------------------------------------------------------------
 
+
 def test_confirmation_flow(parser, monkeypatch):
     # "y" → delete
     monkeypatch.setattr("builtins.input", lambda: "y")
@@ -408,6 +426,7 @@ def test_keyboardinterrupt_cancels_deletion(parser, monkeypatch):
 # Error Handling
 # ----------------------------------------------------------------------------
 
+
 def test_missing_task_raises_keyerror(empty_parser):
     args = empty_parser.main_parser.parse_args(["update", "999", "--description", "x"])
     with pytest.raises(KeyError):
@@ -421,6 +440,7 @@ def test_missing_task_raises_keyerror(empty_parser):
     with pytest.raises(KeyError):
         args.func(args)
 
+
 def test_start_parsing_catches_errors(empty_parser, capsys, monkeypatch):
     monkeypatch.setattr("sys.argv", ["easydone", "update", "999", "--description", "x"])
     with pytest.raises(SystemExit):
@@ -431,6 +451,7 @@ def test_start_parsing_catches_errors(empty_parser, capsys, monkeypatch):
 # ----------------------------------------------------------------------------
 # 10. Output (List)
 # ----------------------------------------------------------------------------
+
 
 def test_list_output(parser, capsys):
     args = parser.main_parser.parse_args(["list"])

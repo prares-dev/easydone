@@ -15,16 +15,19 @@ from . import __version__
 
 CURRENT_SCHEMA_VERSION = 1
 
+
 def default_storage_path() -> Path:
     """Return a stable, user-scoped path for EasyDone task data.
 
     Behavior and rationale:
-    - If the EASYDONE_DATA_FILE environment variable is set, use it. This allows CI, tests, and advanced users to redirect storage to a custom file.
+    - If the EASYDONE_DATA_FILE environment variable is set, use it.
+    This allows CI, tests, and advanced users to redirect storage to a custom file.
     - Otherwise choose a platform-appropriate per-user application data directory:
-        * Windows: %APPDATA% (e.g. C:/Users/<user>/AppData/Roaming)
-        * macOS: ~/Library/Application Support
-        * Linux/other: XDG_DATA_HOME or ~/.local/share as a fallback
-    - The final file is placed under <base>/easydone/tasks.json so the data is predictable and independent of the current working directory.
+    * Windows: %APPDATA% (e.g. C:/Users/<user>/AppData/Roaming)
+    * macOS: ~/Library/Application Support
+    * Linux/other: XDG_DATA_HOME or ~/.local/share as a fallback
+    - The final file is placed under <base>/easydone/tasks.json
+    so the data is predictable and independent of the current working directory.
     """
     # Allow an explicit override for testing or advanced usage. Expand ~ if present.
     custom_path = os.environ.get("EASYDONE_DATA_FILE")
@@ -49,10 +52,12 @@ def default_storage_path() -> Path:
     # Keep the final data file path deterministic and easy to locate.
     return base_dir / "easydone" / "tasks.json"
 
+
 class LoadStatus(Enum):
     OK = "ok"
     MISSING = "missing"
     CORRUPTED = "corrupted"
+
 
 @dataclass(frozen=True)
 class LoadingResult:
@@ -66,33 +71,30 @@ class LoadingResult:
     schema_mismatch: bool = False
     app_mismatch: bool = False
 
+
 class JSONHandler:
     def __init__(self, json_file: str | None = None):
-        """
-        Initialize a storage handler with a stable absolute data file path.
-        """
+        """Initialize a storage handler with a stable absolute data file path."""
         self.app_version = __version__
         self.json_file = Path(json_file).expanduser() if json_file else default_storage_path()
 
     def _quarantine_path(self) -> Path:
-        """ Returns a quarantine path. """
+        """Returns a quarantine path."""
         file_path = self.json_file
         timestamp = datetime.now().strftime("%Y%m%dT%H%M%S")
         quarantine_path = file_path.with_name(
             f"{file_path.stem}.corrupted-{timestamp}{file_path.suffix}"
         )
         return quarantine_path
-    
+
     def _backup_path(self) -> Path:
-        """ Returns a backup path. """
+        """Returns a backup path."""
         file_path = self.json_file
-        backup_path = file_path.with_suffix(file_path.suffix + '.bak')
+        backup_path = file_path.with_suffix(file_path.suffix + ".bak")
         return backup_path
-    
+
     def _backup(self, quarantine=False) -> dict[str, Any]:
-        """
-        Backups a file, returns the backup path if succeed, else returns the exception raised.
-        """
+        """Backups a file, returns the backup path if succeed, else returns the exception raised."""
         try:
             file_path = self.json_file
             backup_path = self._quarantine_path() if quarantine else self._backup_path()
@@ -100,33 +102,35 @@ class JSONHandler:
             return {"backup_path": backup_path, "backup_exception": None}
         except (PermissionError, MemoryError, FileNotFoundError) as exc:
             # remove backup file if any error happened
-            backup_path.unlink(missing_ok=True) # type: ignore
+            backup_path.unlink(missing_ok=True)  # type: ignore
             return {"backup_path": None, "backup_exception": exc}
 
     def load(self) -> LoadingResult:
         """Load tasks from the JSON file."""
         # load file's content into payload or handle exception
         try:
-            with open(self.json_file, 'r', encoding='utf-8') as file:
+            with open(self.json_file, encoding="utf-8") as file:
                 payload = json.load(file)
         except FileNotFoundError:
-            return LoadingResult(
-                tasks={}, status=LoadStatus.MISSING, file_path=self.json_file
-                )
+            return LoadingResult(tasks={}, status=LoadStatus.MISSING, file_path=self.json_file)
         except (json.JSONDecodeError, OSError, TypeError, ValueError):
             backup_result = self._backup(quarantine=True)
             return LoadingResult(
-                tasks={}, status=LoadStatus.CORRUPTED, 
-                file_path=self.json_file, **backup_result
-                )
+                tasks={},
+                status=LoadStatus.CORRUPTED,
+                file_path=self.json_file,
+                **backup_result,
+            )
 
         # unexpected format of content loaded
         if not isinstance(payload, dict):
             backup_result = self._backup(quarantine=True)
             return LoadingResult(
-                tasks={}, status=LoadStatus.CORRUPTED, 
-                file_path=self.json_file, **backup_result
-                )
+                tasks={},
+                status=LoadStatus.CORRUPTED,
+                file_path=self.json_file,
+                **backup_result,
+            )
 
         # try to get metadata from dict loaded
         tasks = payload.get("tasks")
@@ -137,20 +141,27 @@ class JSONHandler:
         if not isinstance(tasks, dict):
             backup_result = self._backup(quarantine=True)
             return LoadingResult(
-                tasks={}, status=LoadStatus.CORRUPTED, 
-                file_path=self.json_file, **backup_result
-                )
-
-        return LoadingResult(
-            tasks=tasks, status=LoadStatus.OK, file_path=self.json_file,
-            found_schema_version = schema_version,
-            found_app_version = app_version,
-            schema_mismatch = schema_version != CURRENT_SCHEMA_VERSION,
-            app_mismatch = app_version != self.app_version
+                tasks={},
+                status=LoadStatus.CORRUPTED,
+                file_path=self.json_file,
+                **backup_result,
             )
 
+        return LoadingResult(
+            tasks=tasks,
+            status=LoadStatus.OK,
+            file_path=self.json_file,
+            found_schema_version=schema_version,
+            found_app_version=app_version,
+            schema_mismatch=schema_version != CURRENT_SCHEMA_VERSION,
+            app_mismatch=app_version != self.app_version,
+        )
+
     def save(self, tasks: dict[str, dict]) -> dict[str, Any]:
-        """Persist tasks with metadata so upgrades can be reviewed safely. Returns a dict containing backup results."""
+        """
+        Persist tasks with metadata so upgrades can be reviewed safely.
+        Returns a dict containing backup results.
+        """
         if not isinstance(tasks, dict):
             raise TypeError("tasks must be a dictionary of task records")
 
@@ -165,12 +176,10 @@ class JSONHandler:
 
         # Keep the last known-good file before touching it.
         backup_result = self._backup()
-    
+
         # Write to a temp file in the SAME directory (matters: os.replace across
         # filesystems isn't atomic), then swap it in as one step.
-        fd, tmp_path = tempfile.mkstemp(
-            dir=self.json_file.parent, prefix=".tasks-", suffix=".tmp"
-        )
+        fd, tmp_path = tempfile.mkstemp(dir=self.json_file.parent, prefix=".tasks-", suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as tmp_file:
                 json.dump(payload, tmp_file, indent=4)
@@ -178,5 +187,5 @@ class JSONHandler:
         except Exception:
             os.unlink(tmp_path)  # don't leave stray .tmp files on failure
             raise
-        
+
         return backup_result

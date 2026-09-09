@@ -27,10 +27,39 @@ easydone = "easydone.__main__:main"
 [tool.setuptools.packages.find]
 include = ["easydone*"]
 
+# PYTEST
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = "-ra"
+cache_dir = "./.cache/pytest"
+
+# RUFF
+
+[tool.ruff]
+target-version = "py39"
+line-length = 100
+output-format = "grouped" # (groups by file), default is 'full'
+show-fixes = true
+cache-dir = "./.cache/ruff"
 
 [tool.ruff.lint]
-ignore = ['DTZ001', 'DTZ005', 'DTZ007', 'DTZ011']
+select = [
+    "E", # pycodestyle
+    "F", # Pyflakes
+    "I", # isort
+    "B", # flake8-bugbear
+    "UP", # pyupgrade
+    "SIM", # flake8-simplify
+    "C4", # flake8-comprehensions
+]
+ignore = [
+    'DTZ001', 'DTZ005', 'DTZ007', 'DTZ011', # datetime-timezone-checks
+    'E101' # indentation contains mixed spaces and tabs
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true

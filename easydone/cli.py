@@ -6,194 +6,268 @@ from .logic import SUPPORTED_PRIORITIES, SUPPORTED_STATUS, TasksManager
 
 
 class Parser:
-    """ A class to manage all the argument parser and command features. """
-    
+    """A class to manage all the argument parser and command features."""
+
     def __init__(self, manager: TasksManager) -> None:
-        """Initialize the CLIApp attributes"""
-        if not isinstance (manager, TasksManager):
+        """Initialize the CLIApp attributes."""
+        if not isinstance(manager, TasksManager):
             raise TypeError()
-            
+
         self.tasks_manager = manager
         self.build_parser()
-    
+
     def build_parser(self) -> None:
-        """ Create the main parser and sub-commands. """
-        description = "Simple and powerfull task tracker. Helps you manage your to-do list directly from the terminal."
+        """Create the main parser and sub-commands."""
+        description = " \
+            Simple and powerfull task tracker. \
+            Helps you manage your to-do list directly from the terminal."
         self.main_parser = ArgumentParser(
-            prog = "EasyDone", description = description, allow_abbrev = False,
-            epilog = "Thanks for using %(prog)s! :)\nAll feedback is appreciated.", )
-        
+            prog="EasyDone",
+            description=description,
+            allow_abbrev=False,
+            epilog="Thanks for using %(prog)s! :)\nAll feedback is appreciated.",
+        )
+
         # Show the current version running.
         self.main_parser.add_argument(
-            '-v', '--version', help='Display app version.', action="version",
-            version="%(prog)s " + __version__)
-        
+            "-v",
+            "--version",
+            help="Display app version.",
+            action="version",
+            version="%(prog)s " + __version__,
+        )
+
         self.main_parser.add_argument(
-            "--no-dates", action="store_true",
-            help="Not output dates (only meaningful with commands like 'search' and 'list').",)
-        
+            "--no-dates",
+            action="store_true",
+            help="Not output dates (only meaningful with commands like 'search' and 'list').",
+        )
+
         # Sub-commands parser
-        sub_pars = self.main_parser.add_subparsers(title="Commands", description="Available commands", dest="command")
-    
+        sub_pars = self.main_parser.add_subparsers(
+            title="Commands", description="Available commands", dest="command"
+        )
+
         # ====================
         # 'NEW' command
-        
+
         # Create parser for 'new' command
         new_pars = sub_pars.add_parser("new", help="Create a new task")
-        new_pars.add_argument(
-            "description", type=str, 
-            help="Description of the task to be added.")
-        
+        new_pars.add_argument("description", type=str, help="Description of the task to be added.")
+
         # optional flag for indicating initial status
         new_pars.add_argument(
-            "-s", "--status", type=str, 
+            "-s",
+            "--status",
+            type=str,
             help="Optional initial status: defaults to 'not-done'.",
-            choices=SUPPORTED_STATUS, default=SUPPORTED_STATUS[0])
-        
+            choices=SUPPORTED_STATUS,
+            default=SUPPORTED_STATUS[0],
+        )
+
         # optional flag for indicating initial priority
         new_pars.add_argument(
-            "-p", "--priority", type=str, 
+            "-p",
+            "--priority",
+            type=str,
             help="Optional priority: defaults to 'low'.",
-            choices=SUPPORTED_PRIORITIES, default=SUPPORTED_PRIORITIES[0])
-        
+            choices=SUPPORTED_PRIORITIES,
+            default=SUPPORTED_PRIORITIES[0],
+        )
+
         # optional flag for indicating due date
         new_pars.add_argument(
-            "-dd", "--due-date", type=str, 
-            help="Update due date (YYYY-MM-DD, Tomorrow, +/-N).")
-        
+            "-dd",
+            "--due-date",
+            type=str,
+            help="Update due date (YYYY-MM-DD, Tomorrow, +/-N).",
+        )
+
         # optional flag for setting initial tags
         new_pars.add_argument(
-            "-t", "--tags", nargs="+", metavar="TAG",
-            help="Initial tags for the task.")
-        
+            "-t",
+            "--tags",
+            nargs="+",
+            metavar="TAG",
+            help="Initial tags for the task.",
+        )
+
         # assign 'new' method from TasksManager to func attr of the Namespace returned by parser
         new_pars.set_defaults(func=self._handle_new)
-        
+
         # ====================
         # 'UPDATE' command
-        
+
         update_pars = sub_pars.add_parser("update", help="Update a task.")
-        
-        update_pars.add_argument(
-            "ids", type=str, nargs="+", metavar="id",
-            help="IDs of the tasks to be updated.")
-        
-        update_pars.add_argument(
-            "-d", "--description", metavar="new-description", type=str, 
-            help="Update description.")
-        
-        update_pars.add_argument(
-            "-p", "--priority", metavar="new-priority",
-            type=str, help="Update priority.", 
-            choices=SUPPORTED_PRIORITIES)
-        
-        update_pars.add_argument(
-            "-dd", "--due-date", metavar="new-due-date",
-            help="Update due date (YYYY-MM-DD, Tomorrow, +/-N, or Clear to remove).")
 
         update_pars.add_argument(
-            "--add-tag", nargs="+", metavar="TAG",
-            help="Add one or more tags.")
+            "ids",
+            type=str,
+            nargs="+",
+            metavar="id",
+            help="IDs of the tasks to be updated.",
+        )
 
         update_pars.add_argument(
-            "--remove-tag", nargs="+", metavar="TAG",
-            help="Remove one or more tags.")
+            "-d",
+            "--description",
+            metavar="new-description",
+            type=str,
+            help="Update description.",
+        )
+
+        update_pars.add_argument(
+            "-p",
+            "--priority",
+            metavar="new-priority",
+            type=str,
+            help="Update priority.",
+            choices=SUPPORTED_PRIORITIES,
+        )
+
+        update_pars.add_argument(
+            "-dd",
+            "--due-date",
+            metavar="new-due-date",
+            help="Update due date (YYYY-MM-DD, Tomorrow, +/-N, or Clear to remove).",
+        )
+
+        update_pars.add_argument(
+            "--add-tag", nargs="+", metavar="TAG", help="Add one or more tags."
+        )
+
+        update_pars.add_argument(
+            "--remove-tag", nargs="+", metavar="TAG", help="Remove one or more tags."
+        )
 
         update_pars.set_defaults(func=self._handle_update)
-        
-        # ====================   
+
+        # ====================
         # 'MARK' command
 
         mark_pars = sub_pars.add_parser("mark", help="Mark a task with a new status.")
-        
+
         mark_pars.add_argument(
-            "ids", type=str, nargs="+", metavar="id",
-            help="IDs of the tasks to be marked.")
-        
+            "ids",
+            type=str,
+            nargs="+",
+            metavar="id",
+            help="IDs of the tasks to be marked.",
+        )
+
         mark_pars.add_argument(
-            "new_status", type=str, 
+            "new_status",
+            type=str,
             help="The new status for the task.",
-            choices=SUPPORTED_STATUS)
-        
+            choices=SUPPORTED_STATUS,
+        )
+
         mark_pars.set_defaults(func=self._handle_mark)
-        
+
         # ====================
         # 'DELETE' command
-        
+
         del_pars = sub_pars.add_parser("delete", help="Deletes a task.")
-        
+
         del_pars.add_argument(
-            "ids", type=str, nargs='+', metavar='id',
-            help="IDs of the tasks to be deleted.")
-        
+            "ids",
+            type=str,
+            nargs="+",
+            metavar="id",
+            help="IDs of the tasks to be deleted.",
+        )
+
         del_pars.add_argument(
-            "-f", "--forced", action="store_true",
-            help="If not used, the user will be prompted for confirmation.")
-        
+            "-f",
+            "--forced",
+            action="store_true",
+            help="If not used, the user will be prompted for confirmation.",
+        )
+
         del_pars.set_defaults(func=self._handle_delete)
-        
+
         # ====================
         # 'LIST' command
-        
+
         list_pars = sub_pars.add_parser("list", help="List all tasks.")
-        
+
         filt_group = list_pars.add_argument_group(
-            title="Filters", description="Optional filters to narrow down the list of tasks.")
-        
+            title="Filters",
+            description="Optional filters to narrow down the list of tasks.",
+        )
+
         filt_group.add_argument(
-            "-s", "--status", type=str, 
+            "-s",
+            "--status",
+            type=str,
             help="Filter by status.",
-            choices=SUPPORTED_STATUS, default=None)
+            choices=SUPPORTED_STATUS,
+            default=None,
+        )
 
         filt_group.add_argument(
-            "-p", "--priority", type=str, 
+            "-p",
+            "--priority",
+            type=str,
             help="Filter by priority.",
-            choices=SUPPORTED_PRIORITIES, default=None)
+            choices=SUPPORTED_PRIORITIES,
+            default=None,
+        )
 
         filt_group.add_argument(
-            "-t", "--tag", nargs="+", metavar="TAG",
-            help="Show tasks containing all specified tags.")
-        
+            "-t",
+            "--tag",
+            nargs="+",
+            metavar="TAG",
+            help="Show tasks containing all specified tags.",
+        )
+
         filt_group.add_argument(
-            "-o", "--overdue", action="store_true" ,
-            help="Filt by overdue tasks.",)
-        
+            "-o",
+            "--overdue",
+            action="store_true",
+            help="Filt by overdue tasks.",
+        )
+
         sort_group = list_pars.add_argument_group(
-            title="Sorting", description="Optional sorting options.")
-        
-        sort_group.add_argument(
-            "--sort", type=str,
-            help="Sort tasks by field.",
-            choices=["priority", "status", "due", "created", "updated"])
+            title="Sorting", description="Optional sorting options."
+        )
 
         sort_group.add_argument(
-            "-r", "--reverse", action="store_true",
-            help="Reverse the sort order (only meaningful with --sort)")
-        
+            "--sort",
+            type=str,
+            help="Sort tasks by field.",
+            choices=["priority", "status", "due", "created", "updated"],
+        )
+
+        sort_group.add_argument(
+            "-r",
+            "--reverse",
+            action="store_true",
+            help="Reverse the sort order (only meaningful with --sort)",
+        )
+
         list_pars.set_defaults(func=self._handle_list)
-        
+
         # ====================
         # 'SEARCH' command
-        
-        search_pars = sub_pars.add_parser(
-            "search", help="Search for tasks by description.")
-        
-        search_pars.add_argument(
-            "query", type=str, nargs='+', metavar='term',
-            help="Search terms.")
-        
+
+        search_pars = sub_pars.add_parser("search", help="Search for tasks by description.")
+
+        search_pars.add_argument("query", type=str, nargs="+", metavar="term", help="Search terms.")
+
         search_pars.set_defaults(func=self._handle_search)
 
     def start_parsing(self) -> bool:
-        """ Parses the arguments passed. Returns true if some command mutated state of any task. """
+        """Parses the arguments passed. Returns true if some command mutated state of any task."""
         args: Namespace
         try:
             args = self.main_parser.parse_args()
         except ValueError as exc:
             self.main_parser.error(str(exc))
             return False
-        
-        if not hasattr(args, 'func'):
+
+        if not hasattr(args, "func"):
             # in case user invokes the program without arguments like:
             # >>> easydone
             self.main_parser.print_help()
@@ -210,9 +284,9 @@ class Parser:
             status=args.status,
             priority=args.priority,
             due_date=args.due_date,
-            tags=args.tags
+            tags=args.tags,
         )
-    
+
     def _handle_update(self, args: Namespace) -> bool:
         has_update_target = (
             args.description is not None
@@ -234,12 +308,10 @@ class Parser:
             add_tags=args.add_tag,
             remove_tags=args.remove_tag,
         )
-    
+
     def _handle_mark(self, args: Namespace) -> bool:
-        return self.tasks_manager.mark_many(
-            ids=args.ids, new_status=args.new_status
-        )
-    
+        return self.tasks_manager.mark_many(ids=args.ids, new_status=args.new_status)
+
     def _handle_delete(self, args: Namespace) -> bool:
         unique_ids = list(dict.fromkeys(args.ids))  # dedupe, preserve order
 
@@ -249,37 +321,32 @@ class Parser:
                 raise KeyError(f"Nonexistent task ({id})")
 
         to_remove = []
-        if args.forced: to_remove = unique_ids
+        if args.forced:
+            to_remove = unique_ids
         else:
-            for id in unique_ids: 
+            for id in unique_ids:
                 try:
-                    if confirm_deletion(id, self.tasks_manager.tasks[id]['description']):
+                    if confirm_deletion(id, self.tasks_manager.tasks[id]["description"]):
                         to_remove.append(id)
                 except KeyboardInterrupt:
-                        return False
+                    return False
         removed = self.tasks_manager.delete(to_remove)
-        
+
         return bool(removed)
 
     def _handle_list(self, args: Namespace) -> bool:
         ids = self.tasks_manager.list(
-            filt_status=args.status, 
+            filt_status=args.status,
             filt_priority=args.priority,
             filt_tags=args.tag,
             filt_overdue=args.overdue,
-            sort_by=args.sort, 
-            reverse=args.reverse
-            )
-        print_table(
-            self.tasks_manager.tasks, 
-            ids, no_dates=args.no_dates
-            )
+            sort_by=args.sort,
+            reverse=args.reverse,
+        )
+        print_table(self.tasks_manager.tasks, ids, no_dates=args.no_dates)
         return False
-    
+
     def _handle_search(self, args: Namespace) -> bool:
         matched = self.tasks_manager.search(args.query)
-        print_table(
-            self.tasks_manager.tasks, 
-            matched, no_dates=args.no_dates
-            )
+        print_table(self.tasks_manager.tasks, matched, no_dates=args.no_dates)
         return False
