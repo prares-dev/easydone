@@ -10,7 +10,7 @@ import hashlib
 from typing import Any, TypedDict
 
 from . import __version__
-from .logic import time_to_due
+from .logic import Stats, is_near_overdue, is_overdue
 from .storage import CURRENT_SCHEMA_VERSION, LoadingResult, LoadStatus
 
 # ----------------------------------------------------------------------------
@@ -45,6 +45,18 @@ except ImportError:
     RICH_AVAILABLE = False
 
 _console = Console() if RICH_AVAILABLE else None  # type: ignore
+
+PRIORITY_STYLES = {
+    "low": "dim",
+    "normal": "",
+    "high": "bold yellow",
+    "urgent": "bold red",
+}
+STATUS_STYLES = {
+    "not-done": "dim",
+    "in-progress": "cyan",
+    "done": "green",
+}
 
 TAG_STYLES = (
     "bright_blue",
@@ -179,26 +191,10 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
         table.add_column(":date:Created", no_wrap=True, justify="center")
         table.add_column(":pencil:Updated", no_wrap=True, justify="center")
 
-    priority_styles = {
-        "low": "dim",
-        "normal": "",
-        "high": "bold yellow",
-        "urgent": "bold red",
-    }
-    status_styles = {
-        "not-done": "dim",
-        "in-progress": "cyan",
-        "done": "green",
-    }
-
     def due_style(task: dict) -> str:
-        time = time_to_due(task)
-        if not time:
-            return ""
-
-        if time.total_seconds() < 0:
+        if is_overdue(task):
             return "bold red"
-        elif time.days < 5:
+        elif is_near_overdue(task):
             return "bright_yellow"
         else:
             return "dim"
@@ -231,8 +227,8 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
                 task_id,
                 description_text,  # type: ignore
                 tags_text,  # type: ignore
-                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
-                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+                Text(prior, style=PRIORITY_STYLES.get(prior, "")),  # type: ignore
+                Text(stat, style=STATUS_STYLES.get(stat, "")),  # type: ignore
                 Text(due, style=due_style(task)),  # type: ignore
                 create,
                 update,
@@ -242,8 +238,8 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
                 task_id,
                 description_text,  # type: ignore
                 tags_text,  # type: ignore
-                Text(prior, style=priority_styles.get(prior, "")),  # type: ignore
-                Text(stat, style=status_styles.get(stat, "")),  # type: ignore
+                Text(prior, style=PRIORITY_STYLES.get(prior, "")),  # type: ignore
+                Text(stat, style=STATUS_STYLES.get(stat, "")),  # type: ignore
             )
 
     _console.print(table)  # type: ignore
@@ -357,3 +353,47 @@ def confirm_deletion(task_id: str, description: str, max_attempts: int = 3) -> b
         ]
     )
     return False
+
+
+def print_stats(stats: Stats) -> None:
+    if not stats.total_tasks:
+        _print("Empty tasks", style="yellow")
+        return
+
+    _print("\nYour EasyDone stats: ", style="bold magenta")
+    total = stats.total_tasks
+    _render_parts(
+        [
+            MyText(text="• You have ", style="bold white"),
+            MyText(
+                text=f"{total} task{'s' if total > 1 else ''} ",
+                style="blue",
+            ),
+            MyText(text="registered in total.", style="bold white"),
+        ]
+    )
+
+    _print("• Totals by priority:", style="bold white")
+    for p, t in stats.total_by_priority.items():
+        _render_parts([MyText(text=f"\t{p}: ", style=PRIORITY_STYLES[p]), MyText(text=f"{t}")])
+    _print("• Totals by status:", style="bold white")
+    for s, t in stats.total_by_status.items():
+        _render_parts([MyText(text=f"\t{s}: ", style=STATUS_STYLES[s]), MyText(text=f"{t}")])
+
+    overdue = stats.total_overdue
+    _render_parts(
+        [
+            MyText(text="• You have ", style="bold white"),
+            MyText(text=f"{overdue} overdue ", style="bold red"),
+            MyText(text=f"task{'s' if overdue > 1 else ''}.", style="bold white"),
+        ]
+    )
+
+    near_overdue = stats.total_near_overdue
+    _render_parts(
+        [
+            MyText(text="• You have ", style="bold white"),
+            MyText(text=f"{near_overdue} near overdue ", style="bold yellow"),
+            MyText(text=f"task{'s' if near_overdue > 1 else ''}.", style="bold white"),
+        ]
+    )

@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 
 from . import __version__
-from .format import confirm_deletion, print_table, print_stats
+from .format import confirm_deletion, print_stats, print_table
 from .logic import SUPPORTED_PRIORITIES, SUPPORTED_STATUS, TasksManager
 
 
