@@ -1,7 +1,7 @@
 from argparse import ArgumentParser, Namespace
 
 from . import __version__
-from .format import confirm_deletion, print_table
+from .format import confirm_deletion, print_table, print_stats
 from .logic import SUPPORTED_PRIORITIES, SUPPORTED_STATUS, TasksManager
 
 
@@ -253,10 +253,14 @@ class Parser:
         # 'SEARCH' command
 
         search_pars = sub_pars.add_parser("search", help="Search for tasks by description.")
-
         search_pars.add_argument("query", type=str, nargs="+", metavar="term", help="Search terms.")
-
         search_pars.set_defaults(func=self._handle_search)
+
+        # ====================
+        # 'STATS' command
+
+        stats_pars = sub_pars.add_parser("stats", help="Show a summary of current tasks.")
+        stats_pars.set_defaults(func=self._handle_stats)
 
     def start_parsing(self) -> bool:
         """Parses the arguments passed. Returns true if some command mutated state of any task."""
@@ -349,4 +353,9 @@ class Parser:
     def _handle_search(self, args: Namespace) -> bool:
         matched = self.tasks_manager.search(args.query)
         print_table(self.tasks_manager.tasks, matched, no_dates=args.no_dates)
+        return False
+
+    def _handle_stats(self, args: Namespace) -> bool:
+        stats = self.tasks_manager.stats()
+        print_stats(stats)
         return False

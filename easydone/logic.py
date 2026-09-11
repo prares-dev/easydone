@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from copy import deepcopy
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from random import randint
 from re import fullmatch
@@ -16,6 +17,15 @@ SUPPORTED_PRIORITIES = ["low", "normal", "high", "urgent"]
 STATUS_ORDER = {status: int(i) for i, status in enumerate(SUPPORTED_STATUS)}
 
 PRIORITY_ORDER = {prior: int(i) for i, prior in enumerate(SUPPORTED_PRIORITIES)}
+
+
+@dataclass
+class Stats:
+    total_tasks: int
+    total_by_priority: dict[str, int]
+    total_by_status: dict[str, int]
+    total_overdue: int
+    total_near_overdue: int
 
 
 def normalize_due_date(value: str | None, today: date | None = None) -> str | None:
@@ -294,6 +304,30 @@ class TasksManager:
 
         return matched
 
+    def stats(self) -> Stats:
+        total_tasks = 0
+        total_by_priority = dict.fromkeys(SUPPORTED_PRIORITIES, 0)
+        total_by_status = dict.fromkeys(SUPPORTED_STATUS, 0)
+        total_overdue = 0
+        total_near_overdue = 0
+
+        for task in self.tasks.values():
+            total_tasks += 1
+            total_by_priority[task["priority"]] += 1
+            total_by_status[task["status"]] += 1
+            if is_overdue(task):
+                total_overdue += 1
+            elif is_near_overdue(task):
+                total_near_overdue += 1
+
+        return Stats(
+            total_tasks=total_tasks,
+            total_by_priority=total_by_priority,
+            total_by_status=total_by_status,
+            total_near_overdue=total_near_overdue,
+            total_overdue=total_overdue,
+        )
+
     def _task_id(self) -> str:
         """
         Returns a random id, formed by digits,
@@ -320,11 +354,20 @@ def is_overdue(task: dict) -> bool:
     if not isinstance(task, dict):
         raise TypeError()
 
-    time = time_to_due(task)
+    time = _time_to_due(task)
     return time is not None and time.total_seconds() < 0
 
 
-def time_to_due(task: dict) -> timedelta | None:
+def is_near_overdue(task: dict) -> bool:
+    """Returns True | False whether the given task is near overdue or not."""
+    if not isinstance(task, dict):
+        raise TypeError()
+
+    time = _time_to_due(task)
+    return time is not None and time.days < 5
+
+
+def _time_to_due(task: dict) -> timedelta | None:
     """Receives a task id and return a boolean indicating if it is overdue or not."""
     if not isinstance(task, dict):
         raise TypeError()
