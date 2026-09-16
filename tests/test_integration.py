@@ -33,7 +33,7 @@ import pytest
 
 from easydone import __version__
 from easydone.cli import Parser
-from easydone.logic import TasksManager, normalize_due_date
+from easydone.logic import TasksManager, Stats, normalize_due_date
 
 # ----------------------------------------------------------------------------
 # Fixtures
@@ -290,6 +290,23 @@ def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
     assert args.no_dates is True
 
+def test_stats_returns_correct_values(manager):
+    tasks = manager.tasks
+    tasks['123']['due'] = "2026-09-10"
+    tasks['456']['due'] = "2026-09-18"
+    stats = manager.stats()
+    
+    assert isinstance(stats, Stats)
+    assert stats.total_tasks == 3
+    assert stats.total_by_priority['low'] == 1
+    assert stats.total_by_priority['normal'] == 1
+    assert stats.total_by_priority['high'] == 0
+    assert stats.total_by_priority['urgent'] == 1
+    assert stats.total_by_status['done'] == 1
+    assert stats.total_by_status['not-done'] == 1
+    assert stats.total_by_status['in-progress'] == 1
+    assert stats.total_overdue == 1
+    assert stats.total_near_overdue == 1
 
 # ----------------------------------------------------------------------------
 # 3. Handlers → Manager Integration
@@ -449,7 +466,7 @@ def test_start_parsing_catches_errors(empty_parser, capsys, monkeypatch):
 
 
 # ----------------------------------------------------------------------------
-# 10. Output (List)
+# 10. Output (List, Stats)
 # ----------------------------------------------------------------------------
 
 
@@ -479,3 +496,11 @@ def test_list_no_dates(parser, capsys):
     output = capsys.readouterr().out
     assert "Created at" not in output
     assert "Updated at" not in output
+
+def test_stats(parser, capsys):
+    args = parser.main_parser.parse_args(["stats"])
+    args.func(args)
+    output = capsys.readouterr().out
+    
+    terms = ["EasyDone stats", "in total", "low", "normal", "high", "urgent", "not-done", "in-progress", "priority", "status", "overdue", "near overdue"]
+    assert all([term in output for term in terms])
