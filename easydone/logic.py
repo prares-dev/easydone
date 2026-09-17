@@ -239,16 +239,25 @@ class TasksManager:
         filt_priority: str | None = None,
         filt_tags: list[str] | None = None,
         filt_overdue: bool = False,
+        exclude_status: str | None = None,
+        exclude_priority: str | None = None,
+        exclude_tags: list[str] | None = None,
+        exclude_overdue: bool = False,
         sort_by: str | None = None,
         reverse: bool = False,
     ) -> list[str]:
         """Returns a filtered list of ids according to status and priority."""
         # validate filters
-        if filt_status is not None and filt_status not in SUPPORTED_STATUS:
-            raise ValueError(f"Invalid status filter: {filt_status}")
-        if filt_priority is not None and filt_priority not in SUPPORTED_PRIORITIES:
-            raise ValueError(f"Invalid priority filter: {filt_priority}")
-        normalized_tags = self._normalize_tags(filt_tags or [])
+        for param in [filt_status, exclude_status]:
+            if param is not None and param not in SUPPORTED_STATUS:
+                raise ValueError(f"Invalid status filter: {param}")
+        for param in [filt_priority, exclude_priority]:
+            if param is not None and param not in SUPPORTED_PRIORITIES:
+                raise ValueError(f"Invalid priority filter: {param}")
+
+        # normalize tag filters
+        normalized_filt_tags = self._normalize_tags(filt_tags or [])
+        normalized_excl_tags = self._normalize_tags(exclude_tags or [])
 
         if not self.tasks:
             return []
@@ -259,11 +268,17 @@ class TasksManager:
             if (
                 (filt_status is None or value["status"] == filt_status)
                 and (filt_priority is None or value["priority"] == filt_priority)
-                and all(tag in task_tags for tag in normalized_tags)
+                and all(tag in task_tags for tag in normalized_filt_tags)
+                and (exclude_status is None or value["status"] != exclude_status)
+                and (exclude_priority is None or value["priority"] != exclude_priority)
+                and not normalized_excl_tags
+                or not all(tag in task_tags for tag in normalized_excl_tags)
             ):
                 due = value.get("due", "9999")
                 due = due if due else "9999"
-                if not filt_overdue or is_overdue(value):
+                if (not filt_overdue or is_overdue(value)) and (
+                    not exclude_overdue or not is_overdue(value)
+                ):
                     filtered.append(key)
 
         def key_func(task_id: str) -> int | str:

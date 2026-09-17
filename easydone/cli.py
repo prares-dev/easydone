@@ -206,10 +206,26 @@ class Parser:
         )
 
         filt_group.add_argument(
+            "--not-status",
+            type=str,
+            help="Exclude by status.",
+            choices=SUPPORTED_STATUS,
+            default=None,
+        )
+
+        filt_group.add_argument(
             "-p",
             "--priority",
             type=str,
             help="Filter by priority.",
+            choices=SUPPORTED_PRIORITIES,
+            default=None,
+        )
+
+        filt_group.add_argument(
+            "--not-priority",
+            type=str,
+            help="Exclude by priority.",
             choices=SUPPORTED_PRIORITIES,
             default=None,
         )
@@ -223,10 +239,23 @@ class Parser:
         )
 
         filt_group.add_argument(
+            "--not-tag",
+            nargs="+",
+            metavar="TAG",
+            help="Exclude tasks containing all specified tags.",
+        )
+
+        filt_group.add_argument(
             "-o",
             "--overdue",
             action="store_true",
             help="Filt by overdue tasks.",
+        )
+
+        filt_group.add_argument(
+            "--not-overdue",
+            action="store_true",
+            help="Exclud overdue tasks.",
         )
 
         sort_group = list_pars.add_argument_group(
@@ -344,6 +373,10 @@ class Parser:
             filt_priority=args.priority,
             filt_tags=args.tag,
             filt_overdue=args.overdue,
+            exclude_status=args.not_status,
+            exclude_priority=args.not_priority,
+            exclude_tags=args.not_tag,
+            exclude_overdue=args.not_overdue,
             sort_by=args.sort,
             reverse=args.reverse,
         )
