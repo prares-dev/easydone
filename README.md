@@ -27,7 +27,7 @@ The goal was to practice building a real-world CLI tool with:
 - **Instant workflow** – no mouse, no distractions.
 - **Smart statuses**: `not-done`, `in-progress`, `done`.
 - **Priority levels**: `low`, `normal`, `high`, `urgent`.
-- **Filter** tasks by status, priority, or both.
+- **Customizable task lists** – include or exclude tasks by status, priority, tags, and due state; sort the results and hide date columns when you want a compact view.
 - **Human‑readable JSON** – inspect your data anytime.
 - **Bulletproof storage** – atomic writes, `.bak` backups, and quarantined corrupt files.
 - **Beautiful output** with [Rich](https://github.com/Textualize/rich) – **optional**, falls back to plain text if not installed.
@@ -73,6 +73,15 @@ easydone list
 # Focus on urgent, unfinished tasks
 easydone list --status not-done --priority urgent
 
+# Show overdue tasks, but leave out tasks already in progress
+easydone list --overdue --not-status in-progress
+
+# Exclude completed and low-priority tasks, then sort the rest by due date
+easydone list --not-status done --not-priority low --sort due
+
+# Use a compact view without date columns
+easydone --no-dates list --sort priority --reverse
+
 # Mark complete
 easydone mark 123 done
 
@@ -96,9 +105,29 @@ easydone delete 123 456 789 -f
 | `easydone update TASK_ID [--description NEW] [--priority NEW] [--due-date DATE] [--add-tag TAG ...] [--remove-tag TAG ...]` | Change task fields and add or remove tags. Use `Clear` to remove a due date. |
 | `easydone mark TASK_ID [TASK_ID ...] new-status` | Set status to `not-done`, `in-progress`, or `done` for one or more tasks. |
 | `easydone delete TASK_ID [TASK_ID ...] [-f]` | Delete one or more tasks. Use `-f` to skip confirmation. |
-| `easydone list [--status STATUS] [--priority PRIORITY] [--tag TAG ...] [--no-dates]` | Show tasks. Multiple tags use AND semantics. |
+| `easydone list [filters] [--sort FIELD] [--reverse]` | Show tasks matching optional inclusion and exclusion filters, with optional sorting. |
 
 > 💡 **Pro tip**: Delete multiple IDs at once: `easydone delete 123 456 789`. All IDs are validated before anything is removed – no partial deletions. Press `Ctrl+C` at any prompt to cancel the entire operation.
+
+### Fully customizing the task list
+
+The `list` command lets you fully tailor which tasks appear, their order, and whether date
+details are shown:
+
+| Option | Effect |
+| :----- | :----- |
+| `--status STATUS` / `--priority PRIORITY` | Include tasks with the selected status and/or priority. |
+| `--tag TAG [TAG ...]` | Include tasks that have **all** specified tags. |
+| `--not-status STATUS` / `--not-priority PRIORITY` | Exclude tasks with the selected status and/or priority. |
+| `--not-tag TAG [TAG ...]` | Exclude tasks that have **all** specified tags. |
+| `--overdue` / `--not-overdue` | Include only overdue tasks, or exclude overdue tasks. |
+| `--sort FIELD` | Sort by `priority`, `status`, `due`, `created`, or `updated`. |
+| `--reverse` | Reverse the selected sort order. |
+| `--no-dates` | Hide due, created, and updated date columns for a more compact list. |
+
+Filters combine: inclusion filters narrow the results, then exclusion filters remove matching tasks. For example, `easydone list --overdue --not-status in-progress` shows overdue tasks except those in progress. Tag filters use AND semantics, so `--tag work planning` requires both tags; `--not-tag work planning` excludes tasks carrying both.
+
+The available output customization is filtering, sorting, and showing or hiding date columns; the table's other columns are fixed.
 
 ---
 

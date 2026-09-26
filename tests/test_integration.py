@@ -26,7 +26,6 @@ These tests verify that:
 - Errors are caught and displayed properly
 """
 
-import re
 from datetime import date, datetime, timedelta
 
 import pytest
@@ -43,7 +42,7 @@ from easydone.logic import TasksManager, Stats, normalize_due_date
 @pytest.fixture
 def manager():
     """TasksManager with 3 tasks at different dates for sorting tests."""
-    date = datetime(2026, 9, 1)
+    date = datetime.now()
     return TasksManager(
         {
             "123": {
@@ -89,11 +88,6 @@ def empty_parser(empty_manager):
 # ----------------------------------------------------------------------------
 # Helpers
 # ----------------------------------------------------------------------------
-
-
-def extract_ids(output: str) -> list[str]:
-    """Extract task IDs from plain table output."""
-    return re.findall(r"┌─ ID: (\w+)", output)
 
 
 # ----------------------------------------------------------------------------
@@ -258,6 +252,41 @@ def test_list_filters_by_all_tags(manager):
     assert manager.list(filt_tags=["work", "planning"]) == ["123"]
 
 
+def test_list_excludes_tasks_by_status_priority_and_tags(manager):
+    manager.tasks["123"]["tags"] = ["work", "planning"]
+    manager.tasks["456"]["tags"] = ["work"]
+    manager.tasks["111"]["tags"] = ["personal", "planning"]
+
+    assert manager.list(exclude_status="done") == ["123", "111"]
+    assert manager.list(exclude_priority="low") == ["456", "111"]
+    assert manager.list(exclude_tags=["work", "planning"]) == ["456", "111"]
+
+
+def test_list_combines_inclusion_and_exclusion_filters(manager):
+    manager.tasks["123"]["tags"] = ["work"]
+    manager.tasks["456"]["tags"] = ["work", "planning"]
+    manager.tasks["111"]["tags"] = ["personal"]
+
+    assert manager.list(
+        filt_tags=["work"],
+        exclude_status="done",
+        exclude_priority="low",
+    ) == []
+    assert manager.list(filt_tags=["work"], exclude_status="in-progress") == ["123", "456"]
+
+
+def test_list_filters_overdue_and_excludes_in_progress(manager):
+    yesterday = (date.today() - timedelta(days=1)).isoformat()
+    tomorrow = (date.today() + timedelta(days=1)).isoformat()
+    manager.tasks["123"]["due"] = yesterday
+    manager.tasks["456"]["due"] = yesterday
+    manager.tasks["111"]["due"] = tomorrow
+
+    assert manager.list(filt_overdue=True) == ["123", "456"]
+    assert manager.list(filt_overdue=True, exclude_status="done") == ["123"]
+    assert manager.list(exclude_overdue=True) == ["111"]
+
+
 def test_mark_many_validates_all_ids_before_mutating(manager):
     with pytest.raises(KeyError):
         manager.mark_many(["123", "missing"], "done")
@@ -286,14 +315,35 @@ def test_bulk_command_parsers_accept_multiple_ids(parser):
     assert list_args.tag == ["work", "planning"]
 
 
+def test_list_parser_accepts_exclusive_filters(parser):
+    args = parser.main_parser.parse_args(
+        [
+            "list",
+            "--not-status",
+            "done",
+            "--not-priority",
+            "low",
+            "--not-tag",
+            "personal",
+            "blocked",
+            "--not-overdue",
+        ]
+    )
+
+    assert args.not_status == "done"
+    assert args.not_priority == "low"
+    assert args.not_tag == ["personal", "blocked"]
+    assert args.not_overdue is True
+
+
 def test_global_no_dates_flag(empty_parser):
     args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
     assert args.no_dates is True
 
 def test_stats_returns_correct_values(manager):
     tasks = manager.tasks
-    tasks['123']['due'] = "2026-09-10"
-    tasks['456']['due'] = "2026-09-18"
+    tasks['123']['due'] = str(datetime.now() - timedelta(days=1)).split(" ")[0]
+    tasks['456']['due'] = str(datetime.now() + timedelta(days=3)).split(" ")[0]
     stats = manager.stats()
     
     assert isinstance(stats, Stats)
@@ -490,12 +540,71 @@ def test_list_filters(parser, capsys):
     assert "123" in output and "456" not in output and "111" not in output
 
 
+def test_list_command_applies_exclusive_filters(parser, capsys):
+    parser.tasks_manager.tasks["123"]["tags"] = ["work"]
+    parser.tasks_manager.tasks["456"]["tags"] = ["personal"]
+    parser.tasks_manager.tasks["111"]["tags"] = ["work", "personal"]
+
+    args = parser.main_parser.parse_args(
+        ["list", "--not-status", "done", "--not-tag", "personal"]
+    )
+    args.func(args)
+    output = capsys.readouterr().out
+
+    assert "123" in output
+    assert "456" not in output
+    assert "111" not in output
+
+    args = parser.main_parser.parse_args(["list", "--not-priority", "low"])
+    args.func(args)
+    output = capsys.readouterr().out
+    assert "123" not in output
+    assert "456" in output
+    assert "111" in output
+
+    parser.tasks_manager.tasks["123"]["due"] = (date.today() - timedelta(days=1)).isoformat()
+    parser.tasks_manager.tasks["456"]["due"] = (date.today() - timedelta(days=1)).isoformat()
+    parser.tasks_manager.tasks["111"]["due"] = (date.today() + timedelta(days=1)).isoformat()
+    args = parser.main_parser.parse_args(["list", "--not-overdue"])
+    args.func(args)
+    output = capsys.readouterr().out
+    assert "123" not in output
+    assert "456" not in output
+    assert "111" in output
+
+
 def test_list_no_dates(parser, capsys):
     args = parser.main_parser.parse_args(["--no-dates", "list"])
     args.func(args)
     output = capsys.readouterr().out
     assert "Created at" not in output
     assert "Updated at" not in output
+
+
+def test_list_command_supports_sorting_and_compact_output(parser, capsys):
+    args = parser.main_parser.parse_args(["--no-dates", "list", "--sort", "priority", "--reverse"])
+    args.func(args)
+    output = capsys.readouterr().out
+
+    assert output.index("111") < output.index("456") < output.index("123")
+    assert "Created at" not in output
+    assert "Updated at" not in output
+    assert "Due:" not in output
+
+
+def test_list_command_reports_no_matching_filters(parser, capsys):
+    args = parser.main_parser.parse_args(["list", "--status", "done", "--priority", "low"])
+    args.func(args)
+
+    assert "No tasks match the selected filters." in capsys.readouterr().out
+
+
+def test_list_command_reports_empty_task_collection(empty_parser, capsys):
+    args = empty_parser.main_parser.parse_args(["list", "--not-status", "done"])
+    args.func(args)
+
+    assert "No tasks exist." in capsys.readouterr().out
+
 
 def test_stats(parser, capsys):
     args = parser.main_parser.parse_args(["stats"])

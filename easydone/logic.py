@@ -271,8 +271,10 @@ class TasksManager:
                 and all(tag in task_tags for tag in normalized_filt_tags)
                 and (exclude_status is None or value["status"] != exclude_status)
                 and (exclude_priority is None or value["priority"] != exclude_priority)
-                and not normalized_excl_tags
-                or not all(tag in task_tags for tag in normalized_excl_tags)
+                and (
+                    not normalized_excl_tags
+                    or not all(tag in task_tags for tag in normalized_excl_tags)
+                )
             ):
                 due = value.get("due", "9999")
                 due = due if due else "9999"
