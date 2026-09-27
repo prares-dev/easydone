@@ -335,11 +335,6 @@ def test_list_parser_accepts_exclusive_filters(parser):
     assert args.not_tag == ["personal", "blocked"]
     assert args.not_overdue is True
 
-
-def test_global_no_dates_flag(empty_parser):
-    args = empty_parser.main_parser.parse_args(["--no-dates", "list"])
-    assert args.no_dates is True
-
 def test_stats_returns_correct_values(manager):
     tasks = manager.tasks
     tasks['123']['due'] = str(datetime.now() - timedelta(days=1)).split(" ")[0]
@@ -399,7 +394,7 @@ def test_search_with_multiple_terms(parser):
 
 def test_search_with_no_dates(parser, capsys):
     """Search with --no-dates should omit dates from output."""
-    args = parser.main_parser.parse_args(["--no-dates", "search", "book"])
+    args = parser.main_parser.parse_args(["search", "book", "--no-dates"])
     args.func(args)
     output = capsys.readouterr().out
     assert "Created at" not in output
@@ -574,7 +569,7 @@ def test_list_command_applies_exclusive_filters(parser, capsys):
 
 
 def test_list_no_dates(parser, capsys):
-    args = parser.main_parser.parse_args(["--no-dates", "list"])
+    args = parser.main_parser.parse_args(["list", "--no-dates"])
     args.func(args)
     output = capsys.readouterr().out
     assert "Created at" not in output
@@ -582,7 +577,7 @@ def test_list_no_dates(parser, capsys):
 
 
 def test_list_command_supports_sorting_and_compact_output(parser, capsys):
-    args = parser.main_parser.parse_args(["--no-dates", "list", "--sort", "priority", "--reverse"])
+    args = parser.main_parser.parse_args(["list", "--sort", "priority", "--reverse", "--no-dates"])
     args.func(args)
     output = capsys.readouterr().out
 

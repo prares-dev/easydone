@@ -37,12 +37,6 @@ class Parser:
             version="%(prog)s " + __version__,
         )
 
-        self.main_parser.add_argument(
-            "--no-dates",
-            action="store_true",
-            help="Not output dates (only meaningful with commands like 'search' and 'list').",
-        )
-
         # Sub-commands parser
         sub_pars = self.main_parser.add_subparsers(
             title="Commands", description="Available commands", dest="command"
@@ -255,25 +249,31 @@ class Parser:
         filt_group.add_argument(
             "--not-overdue",
             action="store_true",
-            help="Exclud overdue tasks.",
+            help="Exclude overdue tasks.",
         )
 
-        sort_group = list_pars.add_argument_group(
-            title="Sorting", description="Optional sorting options."
+        output_group = list_pars.add_argument_group(
+            title="Output", description="Optional output options."
         )
 
-        sort_group.add_argument(
+        output_group.add_argument(
             "--sort",
             type=str,
             help="Sort tasks by field.",
             choices=["priority", "status", "due", "created", "updated"],
         )
 
-        sort_group.add_argument(
+        output_group.add_argument(
             "-r",
             "--reverse",
             action="store_true",
             help="Reverse the sort order (only meaningful with --sort)",
+        )
+
+        output_group.add_argument(
+            "--no-dates",
+            action="store_true",
+            help="Hide due, created-at and updated-at columns for a more compact view.",
         )
 
         list_pars.set_defaults(func=self._handle_list)
@@ -283,6 +283,11 @@ class Parser:
 
         search_pars = sub_pars.add_parser("search", help="Search for tasks by description.")
         search_pars.add_argument("query", type=str, nargs="+", metavar="term", help="Search terms.")
+        search_pars.add_argument(
+            "--no-dates",
+            action="store_true",
+            help="Hide due, created-at and updated-at columns for a more compact view.",
+        )
         search_pars.set_defaults(func=self._handle_search)
 
         # ====================
