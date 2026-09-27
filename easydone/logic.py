@@ -26,6 +26,7 @@ class Stats:
     total_by_status: dict[str, int]
     total_overdue: int
     total_near_overdue: int
+    total_archived: int
 
 
 def normalize_due_date(value: str | None, today: date | None = None) -> str | None:
@@ -245,6 +246,8 @@ class TasksManager:
         exclude_overdue: bool = False,
         sort_by: str | None = None,
         reverse: bool = False,
+        archived_only: bool = False,
+        include_archived: bool = False,
     ) -> list[str]:
         """Returns a filtered list of ids according to status and priority."""
         # validate filters
@@ -265,23 +268,30 @@ class TasksManager:
         filtered = []
         for key, value in self.tasks.items():
             task_tags = value.get("tags", [])
-            if (
-                (filt_status is None or value["status"] == filt_status)
-                and (filt_priority is None or value["priority"] == filt_priority)
-                and all(tag in task_tags for tag in normalized_filt_tags)
-                and (exclude_status is None or value["status"] != exclude_status)
-                and (exclude_priority is None or value["priority"] != exclude_priority)
-                and (
-                    not normalized_excl_tags
-                    or not all(tag in task_tags for tag in normalized_excl_tags)
-                )
+            # check archived or not
+            is_archived = value.get("archived-at")
+            if (is_archived and (archived_only or include_archived)) or (  # ruff: ignore[SIM102]
+                not is_archived and not archived_only
             ):
-                due = value.get("due", "9999")
-                due = due if due else "9999"
-                if (not filt_overdue or is_overdue(value)) and (
-                    not exclude_overdue or not is_overdue(value)
+                # check filters
+                if (
+                    (filt_status is None or value["status"] == filt_status)
+                    and (filt_priority is None or value["priority"] == filt_priority)
+                    and all(tag in task_tags for tag in normalized_filt_tags)
+                    and (exclude_status is None or value["status"] != exclude_status)
+                    and (exclude_priority is None or value["priority"] != exclude_priority)
+                    and (
+                        not normalized_excl_tags
+                        or not all(tag in task_tags for tag in normalized_excl_tags)
+                    )
                 ):
-                    filtered.append(key)
+                    # check due date
+                    due = value.get("due", "9999")
+                    due = due if due else "9999"
+                    if (not filt_overdue or is_overdue(value)) and (
+                        not exclude_overdue or not is_overdue(value)
+                    ):
+                        filtered.append(key)
 
         def key_func(task_id: str) -> int | str:
             if sort_by == "status":
@@ -316,7 +326,9 @@ class TasksManager:
 
         matched = []
         for key, value in self.tasks.items():
-            if all(term.lower() in value["description"].lower() for term in query):
+            if all(
+                term.lower() in value["description"].lower() for term in query
+            ) and not value.get("archived-at"):
                 matched.append(key)
 
         return matched
@@ -327,15 +339,19 @@ class TasksManager:
         total_by_status = dict.fromkeys(SUPPORTED_STATUS, 0)
         total_overdue = 0
         total_near_overdue = 0
+        total_archived = 0
 
         for task in self.tasks.values():
-            total_tasks += 1
-            total_by_priority[task["priority"]] += 1
-            total_by_status[task["status"]] += 1
-            if is_overdue(task):
-                total_overdue += 1
-            elif is_near_overdue(task):
-                total_near_overdue += 1
+            if task.get("archived-at"):
+                total_archived += 1
+            else:
+                total_tasks += 1
+                total_by_priority[task["priority"]] += 1
+                total_by_status[task["status"]] += 1
+                if is_overdue(task):
+                    total_overdue += 1
+                elif is_near_overdue(task):
+                    total_near_overdue += 1
 
         return Stats(
             total_tasks=total_tasks,
@@ -343,7 +359,40 @@ class TasksManager:
             total_by_status=total_by_status,
             total_near_overdue=total_near_overdue,
             total_overdue=total_overdue,
+            total_archived=total_archived,
         )
+
+    def archive_many(self, ids: list[str]) -> bool:
+        """Archive multiple tasks after validating ids."""
+        unique_ids = list(dict.fromkeys(ids))
+        for id in unique_ids:
+            if id not in self.tasks:
+                raise KeyError(f"Nonexistent task {id}")
+
+        for id in unique_ids:
+            self._archive(id)
+
+        return bool(unique_ids)
+
+    def restore_many(self, ids: list[str]) -> bool:
+        """Restore multiple tasks after validating ids."""
+        unique_ids = list(dict.fromkeys(ids))
+        for id in unique_ids:
+            if id not in self.tasks:
+                raise KeyError(f"Nonexistent task {id}")
+
+        for id in unique_ids:
+            self._restore(id)
+
+        return bool(unique_ids)
+
+    def _archive(self, id: str) -> None:
+        """Archive one task."""
+        self.tasks[id]["archived-at"] = str(datetime.now()).split(" ")[0]
+
+    def _restore(self, id: str) -> None:
+        """Restore one task."""
+        self.tasks[id]["archived-at"] = None
 
     def _task_id(self) -> str:
         """

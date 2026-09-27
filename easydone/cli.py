@@ -276,6 +276,20 @@ class Parser:
             help="Hide due, created-at and updated-at columns for a more compact view.",
         )
 
+        archived_group = output_group.add_mutually_exclusive_group()
+
+        archived_group.add_argument(
+            "--archived",
+            action="store_true",
+            help="Show only archived tasks.",
+        )
+
+        archived_group.add_argument(
+            "--with-archived",
+            action="store_true",
+            help="Show also archived tasks.",
+        )
+
         list_pars.set_defaults(func=self._handle_list)
 
         # ====================
@@ -295,6 +309,24 @@ class Parser:
 
         stats_pars = sub_pars.add_parser("stats", help="Show a summary of current tasks.")
         stats_pars.set_defaults(func=self._handle_stats)
+
+        # ====================
+        # 'ARCHIVE' command
+
+        archive_pars = sub_pars.add_parser("archive", help="Archive tasks.")
+        archive_pars.add_argument(
+            "ids", type=str, nargs="+", metavar="id", help="ids of tasks to be archived"
+        )
+        archive_pars.set_defaults(func=self._handle_archive)
+
+        # ====================
+        # 'RESTORE' command
+
+        restore_pars = sub_pars.add_parser("restore", help="Restore tasks.")
+        restore_pars.add_argument(
+            "ids", type=str, nargs="+", metavar="id", help="ids of tasks to be restored"
+        )
+        restore_pars.set_defaults(func=self._handle_restore)
 
     def start_parsing(self) -> bool:
         """Parses the arguments passed. Returns true if some command mutated state of any task."""
@@ -384,6 +416,8 @@ class Parser:
             exclude_overdue=args.not_overdue,
             sort_by=args.sort,
             reverse=args.reverse,
+            archived_only=args.archived,
+            include_archived=args.with_archived,
         )
         print_table(self.tasks_manager.tasks, ids, no_dates=args.no_dates)
         return False
@@ -397,3 +431,11 @@ class Parser:
         stats = self.tasks_manager.stats()
         print_stats(stats)
         return False
+
+    def _handle_archive(self, args: Namespace) -> bool:
+        archived = self.tasks_manager.archive_many(args.ids)
+        return archived
+
+    def _handle_restore(self, args: Namespace) -> bool:
+        restored = self.tasks_manager.restore_many(args.ids)
+        return restored
