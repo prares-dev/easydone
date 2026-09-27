@@ -1,5 +1,7 @@
 # Local development
+.venv/
 .venvs/
+.no-rich/
 .vscode/
 *.code-workspace
 

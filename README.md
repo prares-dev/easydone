@@ -96,6 +96,15 @@ easydone delete 123 -f
 
 # Delete multiple tasks
 easydone delete 123 456 789 -f
+
+# Archive tasks without deleting them
+easydone archive 123 456
+
+# Restore an archived task
+easydone restore 123
+
+# Review archived tasks
+easydone list --archived
 ```
 
 ---
@@ -109,7 +118,10 @@ easydone delete 123 456 789 -f
 | `easydone mark TASK_ID [TASK_ID ...] new-status` | Set status to `not-done`, `in-progress`, or `done` for one or more tasks. |
 | `easydone delete TASK_ID [TASK_ID ...] [-f]` | Delete one or more tasks. Use `-f` to skip confirmation. |
 | `easydone search TERM [TERM ...] [--no-dates]` | Show tasks matching one or multiple terms in their description. |
-| `easydone list [filters] [--sort FIELD] [--reverse] [--no-dates]` | Show tasks matching optional inclusion and exclusion filters, with optional sorting and optional compact view. |
+| `easydone archive TASK_ID [TASK_ID ...]` | Archive one or more tasks without deleting them. |
+| `easydone restore TASK_ID [TASK_ID ...]` | Restore one or more archived tasks. |
+| `easydone list [filters] [--sort FIELD] [--reverse] [--no-dates] [--archived \| --with-archived]` | Show tasks matching optional filters; archived tasks are hidden unless explicitly included. |
+| `easydone stats` | Show counts for active and archived tasks separately. |
 
 > 💡 **Pro tip**: Delete multiple IDs at once: `easydone delete 123 456 789`. All IDs are validated before anything is removed – no partial deletions. Press `Ctrl+C` at any prompt to cancel the entire operation.
 
@@ -128,10 +140,14 @@ details are shown:
 | `--sort FIELD` | Sort by `priority`, `status`, `due`, `created`, or `updated`. |
 | `--reverse` | Reverse the selected sort order. |
 | `--no-dates` | Hide due, created, and updated date columns for a more compact list. |
+| `--archived` | Show only archived tasks. |
+| `--with-archived` | Include archived tasks alongside active tasks. |
 
 Filters combine: inclusion filters narrow the results, then exclusion filters remove matching tasks. For example, `easydone list --overdue --not-status in-progress` shows overdue tasks except those in progress. Tag filters use AND semantics, so `--tag work planning` requires both tags; `--not-tag work planning` excludes tasks carrying both.
 
 The available output customization is filtering, sorting, and showing or hiding date columns; the table's other columns are fixed.
+
+Archived tasks are excluded from `list` and `search` by default. Use `easydone list --archived` to review them or `easydone list --with-archived` to show them with active tasks. Archiving preserves the task; use `restore` to return it to the active list. `stats` reports archived tasks separately from active task totals.
 
 ---
 
@@ -167,9 +183,12 @@ easydone/
 │   ├── storage.py    # JSON persistence with atomic writes, backup & quarantine
 │   └── format.py     # Output formatting (Rich / plain text)
 ├── tests/
-│   ├── test_integration.py   # CLI + Logic integration tests
-│   ├── test_storage.py     # Storage layer tests
-│   └── test_format.py      # Output formatting tests
+│   ├── conftest.py        # Shared task fixtures
+│   ├── test_logic.py      # Task-manager unit tests
+│   ├── test_archiving.py  # Archive and restore tests across logic and CLI
+│   ├── test_integration.py # CLI parsing, handlers, and output integration
+│   ├── test_storage.py    # Persistence, backups, and corruption handling
+│   └── test_format.py     # Rich/plain rendering and messages
 ├── LICENSE
 ├── pyproject.toml
 └── README.md
@@ -207,18 +226,23 @@ py -m pytest
 Run a specific test file:
 
 ```shell
-pytest tests/test_integration.py
-pytest tests/test_storage.py
-pytest tests/test_format.py
+py -m pytest tests/test_logic.py
+py -m pytest tests/test_archiving.py
+py -m pytest tests/test_integration.py
+py -m pytest tests/test_storage.py
+py -m pytest tests/test_format.py
 ```
 
 ### Test Structure
 
 | Test File | What It Tests |
 | :-------- | :------------ |
-| `test_integration.py` | CLI + Logic integration (argument parsing, handlers, user interaction, output) |
-| `test_storage.py` | Storage layer (loading, saving, atomic writes, backups, quarantine) |
-| `test_format.py` | Output formatting (Rich availability, plain‑text fallback) |
+| `conftest.py` | Shared fixtures for active, legacy, and empty task managers |
+| `test_logic.py` | Task creation, due dates, tags, filtering, bulk operations, sorting, and stats |
+| `test_archiving.py` | Archive/restore logic, CLI behavior, list visibility, and persistence integration |
+| `test_integration.py` | CLI parsing, handlers, user interaction, and command output |
+| `test_storage.py` | Loading, saving, atomic writes, backups, and corruption handling |
+| `test_format.py` | Rich/plain task rendering, archive markers, stats output, and prompts |
 
 ---
 

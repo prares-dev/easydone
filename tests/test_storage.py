@@ -113,6 +113,18 @@ def test_save_then_load_round_trips_without_warnings(tmp_path, tasks):
     assert result.status is LoadStatus.OK
 
 
+def test_save_then_load_preserves_archived_task_metadata(tmp_path, tasks):
+    json_file = tmp_path / "tasks.json"
+    tasks["064"]["archived-at"] = "2026-09-27"
+    handler = JSONHandler(str(json_file))
+
+    handler.save(tasks)
+    result = handler.load()
+
+    assert result.status is LoadStatus.OK
+    assert result.tasks["064"]["archived-at"] == "2026-09-27"
+
+
 # ==========================
 # Missing file (not corrupted)
 # ==========================

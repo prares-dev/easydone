@@ -7,6 +7,7 @@ from typing import ClassVar
 import pytest
 
 from easydone import __version__
+from easydone.logic import Stats
 from easydone.storage import CURRENT_SCHEMA_VERSION, LoadingResult, LoadStatus
 
 
@@ -80,8 +81,18 @@ def _reload_format_module(monkeypatch, *, rich_available):
 
         monkeypatch.setattr(builtins, "__import__", fake_import)
 
-    sys.modules.pop("easydone.format", None)
-    return importlib.import_module("easydone.format")
+    format_name = "easydone.format"
+    package = importlib.import_module("easydone")
+    original_package_format = getattr(package, "format", None)
+    original_format = sys.modules.pop(format_name, None)
+    format_module = importlib.import_module(format_name)
+    if original_format is not None:
+        sys.modules[format_name] = original_format
+    else:
+        sys.modules.pop(format_name, None)
+    if original_package_format is not None:
+        package.format = original_package_format
+    return format_module
 
 
 # ================================================================
@@ -111,7 +122,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
 
     # Check for the tree-style table format
     assert "EASYDONE: Task Tracker" in output
-    assert "ID: 1️⃣ 2️⃣ 3️⃣ "
+    assert "ID:1️⃣ 2️⃣ 3️⃣ " in output
     assert "read a book" in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
@@ -126,7 +137,7 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     output = capsys.readouterr().out
 
     assert "EASYDONE: Task Tracker" in output
-    assert "ID: 1️⃣ 2️⃣ 3️⃣ "
+    assert "ID:1️⃣ 2️⃣ 3️⃣ " in output
     assert "read a book" in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
@@ -246,6 +257,105 @@ def test_print_table_uses_rich_with_no_dates(monkeypatch):
     console = console_instances[-1]
     table = console.rendered[-1]
     assert table.columns == ["ID", "Description", "Tags", "Priority", "Status"]
+
+
+def test_print_table_marks_archived_tasks_in_plain_output(monkeypatch, capsys):
+    format_module = _reload_format_module(monkeypatch, rich_available=False)
+
+    format_module.print_table(
+        {
+            "123": {
+                "description": "completed work",
+                "status": "done",
+                "priority": "normal",
+                "archived-at": "2026-09-27",
+            }
+        },
+        ["123"],
+    )
+
+    output = capsys.readouterr().out
+    assert "(📦 archived)" in output
+    assert "completed work" in output
+
+
+def test_print_table_marks_archived_tasks_in_rich_output(monkeypatch):
+    format_module = _reload_format_module(monkeypatch, rich_available=True)
+
+    format_module.print_table(
+        {
+            "123": {
+                "description": "completed work",
+                "status": "done",
+                "priority": "normal",
+                "archived-at": "2026-09-27",
+            }
+        },
+        ["123"],
+        no_dates=True,
+    )
+
+    table = sys.modules["rich.console"].Console.instances[-1].rendered[-1]
+    description = table.rows[0][1]
+    assert description.text == "(archived) completed work"
+    assert description.parts[0] == ("(archived) ", "red")
+
+
+def test_print_stats_includes_archived_count(monkeypatch, capsys):
+    format_module = _reload_format_module(monkeypatch, rich_available=False)
+
+    format_module.print_stats(
+        Stats(
+            total_tasks=1,
+            total_by_priority={"low": 1, "normal": 0, "high": 0, "urgent": 0},
+            total_by_status={"not-done": 1, "in-progress": 0, "done": 0},
+            total_overdue=0,
+            total_near_overdue=0,
+            total_archived=2,
+        )
+    )
+
+    output = capsys.readouterr().out
+    assert "1 active task in total." in output
+    assert "2 archived tasks." in output
+
+
+def test_print_stats_shows_archives_when_no_active_tasks(monkeypatch, capsys):
+    format_module = _reload_format_module(monkeypatch, rich_available=False)
+
+    format_module.print_stats(
+        Stats(
+            total_tasks=0,
+            total_by_priority={"low": 0, "normal": 0, "high": 0, "urgent": 0},
+            total_by_status={"not-done": 0, "in-progress": 0, "done": 0},
+            total_overdue=0,
+            total_near_overdue=0,
+            total_archived=1,
+        )
+    )
+
+    output = capsys.readouterr().out
+    assert "Empty tasks" not in output
+    assert "1 archived task." in output
+    assert "0 overdue tasks." in output
+    assert "0 near overdue tasks." in output
+
+
+def test_print_stats_reports_empty_when_no_active_or_archived_tasks(monkeypatch, capsys):
+    format_module = _reload_format_module(monkeypatch, rich_available=False)
+
+    format_module.print_stats(
+        Stats(
+            total_tasks=0,
+            total_by_priority={"low": 0, "normal": 0, "high": 0, "urgent": 0},
+            total_by_status={"not-done": 0, "in-progress": 0, "done": 0},
+            total_overdue=0,
+            total_near_overdue=0,
+            total_archived=0,
+        )
+    )
+
+    assert "Empty tasks" in capsys.readouterr().out
 
 
 # ================================================================

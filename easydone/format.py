@@ -232,8 +232,10 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
         stat = task.get("status", "-")
         tags = task.get("tags", [])
 
-        prefix = Text("(archived) ", style="red") if is_archived else Text()  # type: ignore
-        description_text = prefix + Text(desc, style="italic white", overflow="ellipsis")  # type: ignore
+        description_text = Text("", overflow="ellipsis")  # type: ignore
+        if is_archived:
+            description_text.append("(archived) ", style="red")
+        description_text.append(desc, style="italic white")
         tags_text = Text("")  # type: ignore
         if tags:
             for index, tag in enumerate(tags):
@@ -383,7 +385,7 @@ def confirm_deletion(task_id: str, description: str, max_attempts: int = 3) -> b
 
 
 def print_stats(stats: Stats) -> None:
-    if not stats.total_tasks:
+    if not stats.total_tasks and not stats.total_archived:
         _print("Empty tasks", style="yellow")
         return
 
@@ -393,10 +395,19 @@ def print_stats(stats: Stats) -> None:
         [
             MyText(text="• You have ", style="bold white"),
             MyText(
-                text=f"{total} task{'s' if total > 1 else ''} ",
+                text=f"{total} active task{'s' if total != 1 else ''} ",
                 style="blue",
             ),
-            MyText(text="registered in total.", style="bold white"),
+            MyText(text="in total.", style="bold white"),
+        ]
+    )
+
+    archived = stats.total_archived
+    _render_parts(
+        [
+            MyText(text="• You have ", style="bold white"),
+            MyText(text=f"{archived} archived ", style="bold red"),
+            MyText(text=f"task{'s' if archived != 1 else ''}.", style="bold white"),
         ]
     )
 
@@ -412,7 +423,7 @@ def print_stats(stats: Stats) -> None:
         [
             MyText(text="• You have ", style="bold white"),
             MyText(text=f"{overdue} overdue ", style="bold red"),
-            MyText(text=f"task{'s' if overdue > 1 else ''}.", style="bold white"),
+            MyText(text=f"task{'s' if overdue != 1 else ''}.", style="bold white"),
         ]
     )
 
@@ -421,6 +432,6 @@ def print_stats(stats: Stats) -> None:
         [
             MyText(text="• You have ", style="bold white"),
             MyText(text=f"{near_overdue} near overdue ", style="bold yellow"),
-            MyText(text=f"task{'s' if near_overdue > 1 else ''}.", style="bold white"),
+            MyText(text=f"task{'s' if near_overdue != 1 else ''}.", style="bold white"),
         ]
     )

@@ -1,4 +1,4 @@
-"""Integration tests for CLI + Logic layers combined.
+"""Integration tests for CLI parsing, handlers, and user-visible behavior.
 
 This module tests how the CLI interface interacts with the task manager.
 We use pytest fixtures that might look unfamiliar, so here's what they do:
@@ -24,55 +24,15 @@ These tests verify that:
 - User interaction (confirmation) works as expected
 - Return values (mutation flags) are correct
 - Errors are caught and displayed properly
+- Commands render filtered task results as expected
 """
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 import pytest
 
 from easydone import __version__
 from easydone.cli import Parser
-from easydone.logic import TasksManager, Stats, normalize_due_date
-
-# ----------------------------------------------------------------------------
-# Fixtures
-# ----------------------------------------------------------------------------
-
-
-@pytest.fixture
-def manager():
-    """TasksManager with 3 tasks at different dates for sorting tests."""
-    date = datetime.now()
-    return TasksManager(
-        {
-            "123": {
-                "description": "read a book",
-                "status": "not-done",
-                "priority": "low",
-                "created-at": str(date + timedelta(days=3)).split(" ")[0],
-                "updated-at": str(date + timedelta(days=9)).split(" ")[0],
-            },
-            "456": {
-                "description": "write code",
-                "status": "done",
-                "priority": "normal",
-                "created-at": str(date).split(" ")[0],
-                "updated-at": str(date + timedelta(days=4)).split(" ")[0],
-            },
-            "111": {
-                "description": "go supermarket",
-                "status": "in-progress",
-                "priority": "urgent",
-                "created-at": str(date + timedelta(days=5)).split(" ")[0],
-                "updated-at": str(date + timedelta(days=7)).split(" ")[0],
-            },
-        }
-    )
-
-
-@pytest.fixture
-def empty_manager():
-    return TasksManager({})
 
 
 @pytest.fixture
@@ -86,11 +46,6 @@ def empty_parser(empty_manager):
 
 
 # ----------------------------------------------------------------------------
-# Helpers
-# ----------------------------------------------------------------------------
-
-
-# ----------------------------------------------------------------------------
 # Version / Help
 # ----------------------------------------------------------------------------
 
@@ -98,7 +53,7 @@ def empty_parser(empty_manager):
 def test_version_output(empty_parser, capsys):
     with pytest.raises(SystemExit):
         empty_parser.main_parser.parse_args(["-v"])
-        assert __version__ in capsys.readouterr().out
+    assert __version__ in capsys.readouterr().out
 
 
 def test_no_args_shows_help(empty_parser, capsys, monkeypatch):
@@ -117,113 +72,11 @@ def test_new_parser_defaults(empty_parser):
     assert args.status == "not-done" and args.priority == "low"
 
 
-def test_new_tasks_start_with_empty_tags(empty_manager):
-    empty_manager.new("test")
-
-    task = next(iter(empty_manager.tasks.values()))
-    assert task["tags"] == []
-
-
 def test_new_parser_rejects_invalid(empty_parser):
     with pytest.raises(SystemExit):
         empty_parser.main_parser.parse_args(["new", "test", "--status", "invalid"])
     with pytest.raises(SystemExit):
         empty_parser.main_parser.parse_args(["new", "test", "--priority", "invalid"])
-
-
-def test_new_rejects_impossible_due_date(empty_manager):
-    with pytest.raises(ValueError, match="Invalid due date"):
-        empty_manager.new("test", due_date="2026-02-30")
-
-
-def test_new_rejects_clear_due_date(empty_manager):
-    with pytest.raises(ValueError, match="Clear can only be used"):
-        empty_manager.new("test", due_date="Clear")
-
-
-def test_update_rejects_unchanged_due_date(manager):
-    manager.tasks["123"]["due"] = "2026-09-10"
-
-    with pytest.raises(ValueError, match="different from the current one"):
-        manager.update("123", new_due="2026-09-10")
-
-
-@pytest.mark.parametrize(
-    ("value", "expected"),
-    [
-        ("Clear", None),
-        ("Tomorrow", "2026-09-02"),
-        ("+3", "2026-09-04"),
-        ("-2", "2026-08-30"),
-    ],
-)
-def test_normalize_due_date_keywords(value, expected):
-    assert normalize_due_date(value, today=date(2026, 9, 1)) == expected
-
-
-def test_update_can_clear_due_date(manager):
-    manager.tasks["123"]["due"] = "2026-09-10"
-
-    assert manager.update("123", new_due="Clear") is True
-    assert manager.tasks["123"]["due"] is None
-
-
-def test_update_rejects_clear_when_task_has_no_due_date(manager):
-    manager.tasks["123"]["due"] = None
-
-    with pytest.raises(ValueError, match="different from the current one"):
-        manager.update("123", new_due="Clear")
-
-
-def test_update_without_due_date_does_not_change_due_date(manager):
-    manager.tasks["123"]["due"] = "2026-09-10"
-
-    assert manager.update("123", new_descr="new description") is True
-    assert manager.tasks["123"]["due"] == "2026-09-10"
-
-
-def test_update_adds_and_removes_tags(manager):
-    manager.tasks["123"]["tags"] = ["work"]
-
-    assert (
-        manager.update(
-            "123",
-            add_tags=["urgent", "work"],
-            remove_tags=["work"],
-        )
-        is True
-    )
-    assert manager.tasks["123"]["tags"] == ["urgent"]
-
-
-def test_update_tags_is_backward_compatible_for_legacy_tasks(manager):
-    manager.tasks["123"].pop("tags", None)
-
-    assert manager.update("123", add_tags=["work"]) is True
-    assert manager.tasks["123"]["tags"] == ["work"]
-
-
-def test_legacy_tasks_receive_empty_tags(manager):
-    manager.tasks["123"].pop("tags", None)
-
-    TasksManager(manager.tasks)
-
-    assert manager.tasks["123"]["tags"] == []
-
-
-def test_existing_tags_are_normalized_when_manager_is_created(manager):
-    manager.tasks["123"]["tags"] = [" work ", "work", "urgent"]
-
-    TasksManager(manager.tasks)
-
-    assert manager.tasks["123"]["tags"] == ["work", "urgent"]
-
-
-def test_update_ignores_redundant_tag_changes(manager):
-    manager.tasks["123"]["tags"] = ["work"]
-
-    assert manager.update("123", add_tags=["work"]) is False
-    assert manager.update("123", remove_tags=["missing"]) is False
 
 
 def test_update_parser_accepts_multiple_tag_options(parser):
@@ -241,68 +94,6 @@ def test_update_parser_accepts_multiple_tag_options(parser):
 
     assert args.add_tag == ["work", "urgent"]
     assert args.remove_tag == ["old"]
-
-
-def test_list_filters_by_all_tags(manager):
-    manager.tasks["123"]["tags"] = ["work", "planning"]
-    manager.tasks["456"]["tags"] = ["work"]
-    manager.tasks["111"]["tags"] = ["personal"]
-
-    assert manager.list(filt_tags=["work"]) == ["123", "456"]
-    assert manager.list(filt_tags=["work", "planning"]) == ["123"]
-
-
-def test_list_excludes_tasks_by_status_priority_and_tags(manager):
-    manager.tasks["123"]["tags"] = ["work", "planning"]
-    manager.tasks["456"]["tags"] = ["work"]
-    manager.tasks["111"]["tags"] = ["personal", "planning"]
-
-    assert manager.list(exclude_status="done") == ["123", "111"]
-    assert manager.list(exclude_priority="low") == ["456", "111"]
-    assert manager.list(exclude_tags=["work", "planning"]) == ["456", "111"]
-
-
-def test_list_combines_inclusion_and_exclusion_filters(manager):
-    manager.tasks["123"]["tags"] = ["work"]
-    manager.tasks["456"]["tags"] = ["work", "planning"]
-    manager.tasks["111"]["tags"] = ["personal"]
-
-    assert manager.list(
-        filt_tags=["work"],
-        exclude_status="done",
-        exclude_priority="low",
-    ) == []
-    assert manager.list(filt_tags=["work"], exclude_status="in-progress") == ["123", "456"]
-
-
-def test_list_filters_overdue_and_excludes_in_progress(manager):
-    yesterday = (date.today() - timedelta(days=1)).isoformat()
-    tomorrow = (date.today() + timedelta(days=1)).isoformat()
-    manager.tasks["123"]["due"] = yesterday
-    manager.tasks["456"]["due"] = yesterday
-    manager.tasks["111"]["due"] = tomorrow
-
-    assert manager.list(filt_overdue=True) == ["123", "456"]
-    assert manager.list(filt_overdue=True, exclude_status="done") == ["123"]
-    assert manager.list(exclude_overdue=True) == ["111"]
-
-
-def test_mark_many_validates_all_ids_before_mutating(manager):
-    with pytest.raises(KeyError):
-        manager.mark_many(["123", "missing"], "done")
-
-    assert manager.tasks["123"]["status"] == "not-done"
-
-
-def test_update_many_rolls_back_if_one_task_fails(manager):
-    with pytest.raises(ValueError, match="different from the current one"):
-        manager.update_many(
-            ["123", "456"],
-            new_prior="normal",
-        )
-
-    assert manager.tasks["123"]["priority"] == "low"
-    assert manager.tasks["456"]["priority"] == "normal"
 
 
 def test_bulk_command_parsers_accept_multiple_ids(parser):
@@ -335,26 +126,9 @@ def test_list_parser_accepts_exclusive_filters(parser):
     assert args.not_tag == ["personal", "blocked"]
     assert args.not_overdue is True
 
-def test_stats_returns_correct_values(manager):
-    tasks = manager.tasks
-    tasks['123']['due'] = str(datetime.now() - timedelta(days=1)).split(" ")[0]
-    tasks['456']['due'] = str(datetime.now() + timedelta(days=3)).split(" ")[0]
-    stats = manager.stats()
-    
-    assert isinstance(stats, Stats)
-    assert stats.total_tasks == 3
-    assert stats.total_by_priority['low'] == 1
-    assert stats.total_by_priority['normal'] == 1
-    assert stats.total_by_priority['high'] == 0
-    assert stats.total_by_priority['urgent'] == 1
-    assert stats.total_by_status['done'] == 1
-    assert stats.total_by_status['not-done'] == 1
-    assert stats.total_by_status['in-progress'] == 1
-    assert stats.total_overdue == 1
-    assert stats.total_near_overdue == 1
 
 # ----------------------------------------------------------------------------
-# 3. Handlers → Manager Integration
+# Handler Integration
 # ----------------------------------------------------------------------------
 
 
@@ -399,30 +173,6 @@ def test_search_with_no_dates(parser, capsys):
     output = capsys.readouterr().out
     assert "Created at" not in output
     assert "Updated at" not in output
-
-
-# ----------------------------------------------------------------------------
-# Sorting (Logic)
-# ----------------------------------------------------------------------------
-
-
-def test_list_sorting_logic(manager):
-    """Sorting at the manager level works correctly."""
-    # Status: not-done (123), in-progress (111), done (456)
-    assert manager.list(sort_by="status") == ["123", "111", "456"]
-    assert manager.list(sort_by="status", reverse=True) == ["456", "111", "123"]
-
-    # Priority: low (123), normal (456), urgent (111)
-    assert manager.list(sort_by="priority") == ["123", "456", "111"]
-    assert manager.list(sort_by="priority", reverse=True) == ["111", "456", "123"]
-
-    # Created: oldest (456), then (123), then (111)
-    assert manager.list(sort_by="created") == ["456", "123", "111"]
-    assert manager.list(sort_by="created", reverse=True) == ["111", "123", "456"]
-
-    # Updated: (456), then (111), then (123)
-    assert manager.list(sort_by="updated") == ["456", "111", "123"]
-    assert manager.list(sort_by="updated", reverse=True) == ["123", "111", "456"]
 
 
 # ----------------------------------------------------------------------------
@@ -511,7 +261,7 @@ def test_start_parsing_catches_errors(empty_parser, capsys, monkeypatch):
 
 
 # ----------------------------------------------------------------------------
-# 10. Output (List, Stats)
+# Command Output
 # ----------------------------------------------------------------------------
 
 
