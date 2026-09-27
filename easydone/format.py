@@ -205,7 +205,6 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
     table.add_column(
         "Description",
         header_style=" white",
-        style="italic white",
         min_width=30,
         overflow="fold",
     )
@@ -227,12 +226,14 @@ def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
 
     for task_id in ids:
         task = tasks[task_id]
+        is_archived = bool(task.get("archived-at"))
         desc = task.get("description", "-")
         prior = task.get("priority", "-")
         stat = task.get("status", "-")
         tags = task.get("tags", [])
 
-        description_text = Text(desc, overflow="ellipsis")  # type: ignore
+        prefix = Text("(archived) ", style="red") if is_archived else Text()  # type: ignore
+        description_text = prefix + Text(desc, style="italic white", overflow="ellipsis")  # type: ignore
         tags_text = Text("")  # type: ignore
         if tags:
             for index, tag in enumerate(tags):
