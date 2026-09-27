@@ -111,7 +111,8 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
 
     # Check for the tree-style table format
     assert "EASYDONE: Task Tracker" in output
-    assert 'ID: 123 ... "read a book"' in output
+    assert "ID: 1️⃣ 2️⃣ 3️⃣ "
+    assert "read a book" in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
     assert "Tags: [work] [urgent]" in output
@@ -125,7 +126,8 @@ def test_print_table_uses_plain_text_fallback(monkeypatch, capsys):
     output = capsys.readouterr().out
 
     assert "EASYDONE: Task Tracker" in output
-    assert 'ID: 123 ... "read a book"' in output
+    assert "ID: 1️⃣ 2️⃣ 3️⃣ "
+    assert "read a book" in output
     assert "Priority: low" in output
     assert "Status: not-done" in output
     assert "Due" not in output

@@ -137,34 +137,60 @@ def _render_parts(parts: list[MyText], return_val: bool = False) -> str | Text |
         print(result)
 
 
+def _taskid_emoji(task_id: str) -> str:
+    """converts a task id into emoji characters"""
+    emoji = {
+        "0": "0️⃣",
+        "1": "1️⃣",
+        "2": "2️⃣",
+        "3": "3️⃣",
+        "4": "4️⃣",
+        "5": "5️⃣",
+        "6": "6️⃣",
+        "7": "7️⃣",
+        "8": "8️⃣",
+        "9": "9️⃣",
+    }
+    result = ""
+    for char in task_id:
+        result += emoji[char] + " "
+    return result
+
+
 def _plain_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
     """Plain text table renderer."""
     print("┌────────────────────────┐")
-    print("│ EASYDONE: Task Tracker |")
+    print("│ EASYDONE: Task Tracker │ 📝")
     print("└────────────────────────┘")
     for task_id in ids:
         task = tasks[task_id]
+        is_archived = bool(task.get("archived-at"))
         desc = task.get("description", "-")
         prior = task.get("priority", "-")
+        prior_emoji = {"urgent": "‼️", "high": "⚠️", "normal": "", "low": ""}
         stat = task.get("status", "-")
+        stat_emoji = {"done": "✅", "in-progress": "🔄️", "not-done": "❌"}
         tags = task.get("tags", [])
-        tag_text = " ".join(f"[{tag}]" for tag in tags) or "-"
+        tag_text = " ".join(f"[{tag}]" for tag in tags)
 
-        print(f'┌─ ID: {task_id} ... "{desc}"')
-        print(f"│  ├── Priority: {prior}")
-        print(f"│  ├── Status: {stat}")
-        print(f"│  {'├──' if not no_dates else '└──'} Tags: {tag_text}")
+        print(f'┌─{" (📦 archived)" if is_archived else ""} "{desc}" ')
+        print(f"│  ├─── ID:{_taskid_emoji(task_id)}")
+        if tag_text:
+            print(f"│  ├─── 🏷️  Tags: {tag_text}")
+        print(f"│  ├─── Priority: {prior} {prior_emoji[prior]}")
+        print(f"│  {'├───' if not no_dates else '└───'} Status: {stat} {stat_emoji[stat]}")
 
         if not no_dates:
             create = task.get("created-at", "-")
             due = task.get("due", "-")
-            due = "-" if due is None else due
+            due = due
             update = task.get("updated-at", "-")
             update = "-" if update is None else update
-
-            print(f"│  ├── Due: {due}")
-            print(f"│  ├── Created at: {create}")
-            print(f"│  └── Updated at: {update}")
+            if due:
+                print(f"│  ├─── ⌛ Due: {due}")
+            print(f"│  ├─── Created at: {create}")
+            print(f"│  └─── Updated at: {update}")
+        print("│")
 
 
 def _rich_table(tasks: dict[str, dict], ids: list[str], no_dates: bool) -> None:
