@@ -79,8 +79,11 @@ easydone list --overdue --not-status in-progress
 # Exclude completed and low-priority tasks, then sort the rest by due date
 easydone list --not-status done --not-priority low --sort due
 
-# Use a compact view without date columns
-easydone --no-dates list --sort priority --reverse
+# Use a compact view without date columns and sort descendently by priority
+easydone list --no-dates --sort priority --reverse
+
+# View all tasks with the term `easydone` in their description
+easydone search "easydone"
 
 # Mark complete
 easydone mark 123 done
@@ -105,7 +108,8 @@ easydone delete 123 456 789 -f
 | `easydone update TASK_ID [--description NEW] [--priority NEW] [--due-date DATE] [--add-tag TAG ...] [--remove-tag TAG ...]` | Change task fields and add or remove tags. Use `Clear` to remove a due date. |
 | `easydone mark TASK_ID [TASK_ID ...] new-status` | Set status to `not-done`, `in-progress`, or `done` for one or more tasks. |
 | `easydone delete TASK_ID [TASK_ID ...] [-f]` | Delete one or more tasks. Use `-f` to skip confirmation. |
-| `easydone list [filters] [--sort FIELD] [--reverse]` | Show tasks matching optional inclusion and exclusion filters, with optional sorting. |
+| `easydone search TERM [TERM ...] [--no-dates]` | Show tasks matching one or multiple terms in their description. |
+| `easydone list [filters] [--sort FIELD] [--reverse] [--no-dates]` | Show tasks matching optional inclusion and exclusion filters, with optional sorting and optional compact view. |
 
 > 💡 **Pro tip**: Delete multiple IDs at once: `easydone delete 123 456 789`. All IDs are validated before anything is removed – no partial deletions. Press `Ctrl+C` at any prompt to cancel the entire operation.
 
@@ -197,7 +201,7 @@ pip install -e ".[dev]"
 Run the complete test suite:
 
 ```shell
-pytest
+py -m pytest
 ```
 
 Run a specific test file:
